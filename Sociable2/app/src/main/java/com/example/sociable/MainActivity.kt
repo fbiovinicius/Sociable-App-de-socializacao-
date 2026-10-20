@@ -1,47 +1,219 @@
 package com.example.sociable
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.sociable.ui.theme.SociableTheme
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.delay
+
+// Definição das cores
+val DarkPurple = Color(0xFF1E1830)
+val TextPink = Color(0xFFD97A8B)
+val ButtonPink = Color(0xFFC95068)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
-            SociableTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+            MaterialTheme {
+                SociableApp()
             }
         }
     }
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
+fun SociableApp() {
+    val navController = rememberNavController()
+    // Configuração da navegação entre as telas
+    NavHost(navController = navController, startDestination = "splash") {
+        composable("splash") { SplashScreen(navController) }
+        composable("login") { WelcomeScreen() }
+    }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun GreetingPreview() {
-    SociableTheme {
-        Greeting("Android")
+fun SplashScreen(navController: NavController) {
+    // Interação: Aguarda 3 segundos e navega para a tela de login
+    LaunchedEffect(Unit) {
+        delay(3000L)
+        navController.navigate("login") {
+            // Remove a splash da pilha para o usuário não voltar pra ela ao apertar "Voltar"
+            popUpTo("splash") { inclusive = true }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkPurple),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Substitua R.drawable.ic_launcher_foreground pelo nome da sua logo importada
+        Image(
+            painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+            contentDescription = "Logo Sociable",
+            modifier = Modifier
+                .size(150.dp)
+                .clip(CircleShape)
+                .background(Color.White)
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "SOCIABLE",
+            color = TextPink,
+            fontSize = 36.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.sp
+        )
+
+        Text(
+            text = "Conexões em Círculo ✨",
+            color = Color.White.copy(alpha = 0.8f),
+            fontSize = 16.sp
+        )
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        // Indicador de carregamento simples
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            repeat(3) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(TextPink.copy(alpha = 0.6f))
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun WelcomeScreen() {
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkPurple)
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Logo menor
+        Box(
+            modifier = Modifier
+                .size(80.dp)
+                .clip(CircleShape)
+                .background(Color.White)
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(text = "Bem-vindo ao", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(text = "Sociable", color = TextPink, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Encontre pessoas para curtir festas, eventos e rolês.\nSem compromisso, só diversão. \uD83C\uDF89",
+            color = Color.White.copy(alpha = 0.7f),
+            textAlign = TextAlign.Center,
+            fontSize = 14.sp
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Card de Evento de Exemplo
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.White.copy(alpha = 0.1f))
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.DarkGray))
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = "Barzinho do Centro · Vila ...", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(text = "Amanhã · 21h · 15 pessoas", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Botão Gmail
+        Button(
+            onClick = { Toast.makeText(context, "Login com Google clicado", Toast.LENGTH_SHORT).show() },
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Entrar / Cadastrar com Gmail", color = Color.Black)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("ou", color = Color.White.copy(alpha = 0.5f))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Botão Criar Conta
+        Button(
+            onClick = { Toast.makeText(context, "Criar conta clicado", Toast.LENGTH_SHORT).show() },
+            colors = ButtonDefaults.buttonColors(containerColor = ButtonPink),
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Criar minha conta \uD83C\uDF89", color = Color.White)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Botão Já tenho conta
+        OutlinedButton(
+            onClick = { Toast.makeText(context, "Já tenho conta clicado", Toast.LENGTH_SHORT).show() },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+            border = null
+        ) {
+            Text("Já tenho conta · Entrar")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Ao continuar, você concorda com nossos Termos de Uso e Política de Privacidade",
+            color = Color.White.copy(alpha = 0.5f),
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center
+        )
     }
 }
