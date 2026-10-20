@@ -49,7 +49,7 @@ Saber o que está acontecendo na cidade ainda é difícil:
 
 **Evento**
 - Descrição, local, distância, horário, categoria, avaliação e quantidade de pessoas que vão.
-- Ações: salvar, avaliar, denunciar e confirmar presença ("Eu vou!").
+- Ações: salvar, avaliar, denunciar e confirmar presença ("Eu vou!!").
 - Chat do evento para quem confirmou presença.
 
 **Navegação:** Explorar • Salvos • Conversas • Perfil
