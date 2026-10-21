@@ -1,5 +1,4 @@
 package com.example.sociable
-
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -27,6 +26,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.delay
+import com.example.sociable.ui.cadastro.CadastroScreen
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.userProfileChangeRequest
 
 // Definição das cores
 val DarkPurple = Color(0xFF1E1830)
@@ -44,15 +46,92 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
 @Composable
 fun SociableApp() {
     val navController = rememberNavController()
-    // Configuração da navegação entre as telas
-    NavHost(navController = navController, startDestination = "splash") {
-        composable("splash") { SplashScreen(navController) }
-        composable("login") { WelcomeScreen() }
+    val context = LocalContext.current
+
+    NavHost(
+        navController = navController,
+        startDestination = "splash"
+    ) {
+        composable("splash") {
+            SplashScreen(navController)
+        }
+
+        composable("login") {
+            WelcomeScreen(
+                onCriarConta = {
+                    navController.navigate("cadastro")
+                },
+                onEntrar = {
+                    navController.navigate("entrar")
+                }
+            )
+        }
+
+
+        composable("cadastro") {
+            CadastroScreen(
+                onCriarConta = { nome, email, senha ->
+
+                    FirebaseAuth.getInstance()
+                        .createUserWithEmailAndPassword(
+                            email.trim(),
+                            senha
+                        )
+                        .addOnSuccessListener { result ->
+
+                            val profileUpdates = userProfileChangeRequest {
+                                displayName = nome.trim()
+                            }
+
+                            result.user?.updateProfile(profileUpdates)
+                                ?.addOnCompleteListener { profileTask ->
+                                    if (!profileTask.isSuccessful) {
+                                        Toast.makeText(
+                                            context,
+                                            "Conta criada, mas não foi possível salvar o nome.",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            "Conta criada com sucesso!",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
+                        }
+                        .addOnFailureListener { exception ->
+                            Toast.makeText(
+                                context,
+                                exception.localizedMessage
+                                    ?: "Erro ao criar conta.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                },
+                onEntrar = {
+                    navController.navigate("entrar")
+                }
+            )
+        }
+
+
+        composable("entrar") {
+            // Tela de login será implementada depois.
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Tela de login em desenvolvimento")
+            }
+        }
     }
 }
+
 
 @Composable
 fun SplashScreen(navController: NavController) {
@@ -115,7 +194,10 @@ fun SplashScreen(navController: NavController) {
 }
 
 @Composable
-fun WelcomeScreen() {
+fun WelcomeScreen(
+    onCriarConta: () -> Unit,
+    onEntrar: () -> Unit
+) {
     val context = LocalContext.current
 
     Column(
@@ -185,27 +267,44 @@ fun WelcomeScreen() {
         Spacer(modifier = Modifier.height(16.dp))
 
         // Botão Criar Conta
+
+
         Button(
-            onClick = { Toast.makeText(context, "Criar conta clicado", Toast.LENGTH_SHORT).show() },
-            colors = ButtonDefaults.buttonColors(containerColor = ButtonPink),
-            modifier = Modifier.fillMaxWidth().height(50.dp),
+            onClick = onCriarConta,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = ButtonPink
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Criar minha conta \uD83C\uDF89", color = Color.White)
+            Text(
+                text = "Criar minha conta 🎉",
+                color = Color.White
+            )
         }
+
+
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // Botão Já tenho conta
+
         OutlinedButton(
-            onClick = { Toast.makeText(context, "Já tenho conta clicado", Toast.LENGTH_SHORT).show() },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
+            onClick = onEntrar,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = Color.White
+            ),
             border = null
         ) {
             Text("Já tenho conta · Entrar")
         }
+
 
         Spacer(modifier = Modifier.height(16.dp))
 

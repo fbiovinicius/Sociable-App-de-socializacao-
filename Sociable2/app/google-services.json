@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "344948247661",
+    "project_id": "sociable-45756",
+    "storage_bucket": "sociable-45756.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:344948247661:android:6824128dc782bc31e54364",
+        "android_client_info": {
+          "package_name": "com.example.sociable"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkgRF6ZaUNsW-NLTscLRInJ25v4_QzBCU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
