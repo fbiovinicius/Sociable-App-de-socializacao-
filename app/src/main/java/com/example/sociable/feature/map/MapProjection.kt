@@ -2,8 +2,8 @@ package com.example.sociable.feature.map
 
 /**
  * Converte latitude/longitude em coordenadas normalizadas (0..1) para o mapa
- * ilustrativo em Canvas. Quando o Google Maps entrar, esta classe deixa de ser
- * usada pela tela, mas continua útil para miniaturas e testes.
+ * ilustrativo em Canvas. A tela do mapa agora usa o Google Maps, então esta classe
+ * não é mais usada por ela, mas continua útil para miniaturas e testes.
  */
 data class MapPoint(val x: Float, val y: Float)
 

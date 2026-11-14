@@ -47,8 +47,7 @@ data class MapUiState(
 
 /**
  * Lógica do mapa: quais eventos estão acontecendo/acontecerão hoje.
- * A tela placeholder mostra a lista + coordenadas; quando o parceiro integrar
- * o Google Maps, ele só consome `markers` e `onMarkerSelected`.
+ * A tela do mapa (Google Maps Compose) só consome `markers` e `onMarkerSelected`.
  */
 class MapViewModel(
     private val eventRepository: EventRepository,
