@@ -60,6 +60,7 @@ class FakeEventRepository(
             organizerName = draft.organizerName,
             goingCount = 0,
             createdAt = now,
+            isSecret = draft.isSecret,
         )
         db.events.update { it + event }
         return AppResult.Success(event)

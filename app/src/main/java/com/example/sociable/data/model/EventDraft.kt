@@ -22,4 +22,6 @@ data class EventDraft(
     val imageUrl: String?,
     val organizerId: String,
     val organizerName: String,
+    /** Cria o evento como "segredinho" (local revelado só aos confirmados). */
+    val isSecret: Boolean = false,
 )

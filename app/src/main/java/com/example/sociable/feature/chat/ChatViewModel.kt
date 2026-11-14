@@ -10,15 +10,19 @@ import com.example.sociable.core.validation.Validators
 import com.example.sociable.data.model.Message
 import com.example.sociable.data.repository.AuthRepository
 import com.example.sociable.data.repository.ChatRepository
+import com.example.sociable.data.repository.EventRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class ChatUiState(
     val messages: List<Message> = emptyList(),
+    val eventTitle: String = "",
+    val goingCount: Int = 0,
     val input: String = "",
     val inputError: ValidationError? = null,
     val isLoading: Boolean = true,
@@ -30,6 +34,7 @@ data class ChatUiState(
 class ChatViewModel(
     private val eventId: String,
     private val chatRepository: ChatRepository,
+    private val eventRepository: EventRepository,
     private val authRepository: AuthRepository,
 ) : ViewModel() {
 
@@ -40,14 +45,26 @@ class ChatViewModel(
 
     init {
         viewModelScope.launch {
-            chatRepository.observeMessages(eventId)
+            combine(
+                chatRepository.observeMessages(eventId),
+                eventRepository.observeEvent(eventId),
+            ) { messages, event ->
+                messages to event
+            }
                 .catch { throwable ->
                     _uiState.update {
                         it.copy(isLoading = false, error = throwable.toAppError())
                     }
                 }
-                .collect { messages ->
-                    _uiState.update { it.copy(messages = messages, isLoading = false) }
+                .collect { (messages, event) ->
+                    _uiState.update {
+                        it.copy(
+                            messages = messages,
+                            eventTitle = event?.title.orEmpty(),
+                            goingCount = event?.goingCount ?: 0,
+                            isLoading = false,
+                        )
+                    }
                 }
         }
     }

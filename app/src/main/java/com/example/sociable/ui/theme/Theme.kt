@@ -1,25 +1,26 @@
 package com.example.sociable.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val SociableColorScheme = lightColorScheme(
-    primary = Wine,
-    onPrimary = Color.White,
-    primaryContainer = SoftPink,
-    onPrimaryContainer = WineDark,
-    secondary = DarkPurple,
-    onSecondary = Color.White,
-    background = Cream,
-    onBackground = Ink,
+    primary = Coral,
+    onPrimary = SCream,
+    primaryContainer = OrangeSoft,
+    onPrimaryContainer = SInk,
+    secondary = Plum,
+    onSecondary = SCream,
+    secondaryContainer = Rose,
+    onSecondaryContainer = SInk,
+    background = SCream,
+    onBackground = SInk,
     surface = Color.White,
-    onSurface = Ink,
-    surfaceVariant = CreamDark,
-    onSurfaceVariant = MutedInk,
-    outline = Sand,
+    onSurface = SInk,
+    surfaceVariant = Rose,
+    onSurfaceVariant = Plum,
+    outline = SInk,
     error = Color(0xFFB3261E),
 )
 
