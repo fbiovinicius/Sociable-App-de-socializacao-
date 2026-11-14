@@ -90,6 +90,18 @@ parceiros conectarem o Firebase está em
 
 Conta de demonstração: `demo@sociable.app` / `123456`.
 
+### Google Maps
+
+O mapa usa o Maps SDK for Android. Para ele aparecer, crie uma chave de API (com o
+**Maps SDK for Android** ativado no Google Cloud) e adicione no `local.properties`
+(arquivo ignorado pelo Git):
+
+```properties
+MAPS_API_KEY=sua_chave_aqui
+```
+
+Sem a chave o app compila e roda, mas o mapa fica em branco.
+
 ## Autores
 
 - Fábio Vinícius
