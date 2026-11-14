@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.services)
 }
 
 // A chave do Google Maps fica em local.properties (já ignorado pelo Git):
@@ -49,6 +50,9 @@ android {
 }
 
 dependencies {
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -68,6 +72,7 @@ dependencies {
     implementation(libs.koin.androidx.compose)
 
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     implementation(libs.play.services.maps)
     implementation(libs.play.services.location)
