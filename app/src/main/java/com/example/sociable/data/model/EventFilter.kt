@@ -12,12 +12,15 @@ data class EventFilter(
     val categories: Set<EventCategory> = emptySet(),
     val dateFilter: DateFilter = DateFilter.ALL,
     val onlyFree: Boolean = false,
+    /** Mostra apenas eventos marcados como "segredinho". */
+    val onlySecret: Boolean = false,
 ) {
     val isEmpty: Boolean
         get() = query.isBlank() &&
             categories.isEmpty() &&
             dateFilter == DateFilter.ALL &&
-            !onlyFree
+            !onlyFree &&
+            !onlySecret
 }
 
 enum class DateFilter(val label: String) {
@@ -33,14 +36,17 @@ enum class DateFilter(val label: String) {
 fun EventFilter.matches(event: Event, now: Instant): Boolean {
     if (query.isNotBlank()) {
         val term = query.trim()
-        val matchesText = event.title.contains(term, ignoreCase = true) ||
-            event.venueName.contains(term, ignoreCase = true) ||
-            event.address.contains(term, ignoreCase = true)
+        // O local de um segredinho não entra na busca para não vazar o endereço.
+        val matchesPlace = !event.isSecret &&
+            (event.venueName.contains(term, ignoreCase = true) ||
+                event.address.contains(term, ignoreCase = true))
+        val matchesText = event.title.contains(term, ignoreCase = true) || matchesPlace
         if (!matchesText) return false
     }
 
     if (categories.isNotEmpty() && event.category !in categories) return false
     if (onlyFree && !event.isFree) return false
+    if (onlySecret && !event.isSecret) return false
 
     val eventDate = event.startAt.atZone(ManausTime.ZONE).toLocalDate()
     val today = now.atZone(ManausTime.ZONE).toLocalDate()

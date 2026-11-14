@@ -28,6 +28,11 @@ data class Event(
     val organizerName: String,
     val goingCount: Int = 0,
     val createdAt: Instant,
+    /**
+     * "Segredinho": evento com local divulgado apenas para quem confirmou presença.
+     * O backend deve ocultar `venueName`/`address` de quem não tem RSVP.
+     */
+    val isSecret: Boolean = false,
 ) {
     fun isHappeningAt(now: Instant): Boolean =
         !now.isBefore(startAt) && !now.isAfter(endAt)

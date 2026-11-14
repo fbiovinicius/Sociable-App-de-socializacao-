@@ -67,6 +67,7 @@ val appModule = module {
         ChatViewModel(
             eventId = params.get(),
             chatRepository = get(),
+            eventRepository = get(),
             authRepository = get(),
         )
     }

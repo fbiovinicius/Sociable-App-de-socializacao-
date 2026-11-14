@@ -30,6 +30,7 @@ data class CreateEventUiState(
     val latitude: String = "-3.1190",
     val longitude: String = "-60.0217",
     val isFree: Boolean = true,
+    val isSecret: Boolean = false,
     val price: String = "",
     val capacity: String = "",
     val imageUrl: String = "",
@@ -115,6 +116,10 @@ class CreateEventViewModel(
         }
     }
 
+    fun onSecretChange(isSecret: Boolean) {
+        _uiState.update { it.copy(isSecret = isSecret, error = null) }
+    }
+
     fun onPriceChange(value: String) {
         _uiState.update { it.copy(price = value, priceError = null, error = null) }
     }
@@ -190,6 +195,7 @@ class CreateEventViewModel(
             imageUrl = state.imageUrl.trim().takeIf { it.isNotEmpty() },
             organizerId = user.id,
             organizerName = user.name,
+            isSecret = state.isSecret,
         )
 
         viewModelScope.launch {

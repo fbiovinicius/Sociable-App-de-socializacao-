@@ -18,6 +18,7 @@ class EventFilterTest {
         address: String = "Rua 10 de Julho - Centro",
         category: EventCategory = EventCategory.PARTY,
         isFree: Boolean = true,
+        isSecret: Boolean = false,
         dayOffset: Long = 0,
     ): Event {
         val start = ZonedDateTime.of(2026, 5, 10, 20, 0, 0, 0, ManausTime.ZONE)
@@ -42,6 +43,7 @@ class EventFilterTest {
             organizerName = "Ana Souza",
             goingCount = 1,
             createdAt = now,
+            isSecret = isSecret,
         )
     }
 
@@ -65,6 +67,13 @@ class EventFilterTest {
     }
 
     @Test
+    fun `busca nao revela o local de evento secreto`() {
+        val secret = event(title = "Luau", venueName = "Praia da Ponta Negra", isSecret = true)
+        assertTrue(EventFilter(query = "Luau").matches(secret, now))
+        assertFalse(EventFilter(query = "Ponta Negra").matches(secret, now))
+    }
+
+    @Test
     fun `filtro por categoria`() {
         assertTrue(EventFilter(categories = setOf(EventCategory.PARTY)).matches(event(), now))
         assertFalse(
@@ -76,6 +85,13 @@ class EventFilterTest {
     fun `filtro somente gratis`() {
         assertTrue(EventFilter(onlyFree = true).matches(event(isFree = true), now))
         assertFalse(EventFilter(onlyFree = true).matches(event(isFree = false), now))
+    }
+
+    @Test
+    fun `filtro de segredinhos mostra apenas eventos secretos`() {
+        val filter = EventFilter(onlySecret = true)
+        assertTrue(filter.matches(event(isSecret = true), now))
+        assertFalse(filter.matches(event(isSecret = false), now))
     }
 
     @Test
@@ -102,5 +118,6 @@ class EventFilterTest {
         assertFalse(EventFilter(categories = setOf(EventCategory.MUSIC)).isEmpty)
         assertFalse(EventFilter(dateFilter = DateFilter.TODAY).isEmpty)
         assertFalse(EventFilter(onlyFree = true).isEmpty)
+        assertFalse(EventFilter(onlySecret = true).isEmpty)
     }
 }

@@ -1,8 +1,6 @@
 package com.example.sociable.ui.common
 
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -10,6 +8,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import com.example.sociable.core.validation.ValidationError
 
+/** Atalho para os formulários: traduz o erro do domínio para o texto de apoio. */
 @Composable
 fun FormTextField(
     value: String,
@@ -22,24 +21,20 @@ fun FormTextField(
     minLines: Int = 1,
     isPassword: Boolean = false,
 ) {
-    OutlinedTextField(
+    SociableTextField(
+        label = label,
         value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
+        onChange = onValueChange,
         modifier = modifier,
         isError = error != null,
-        supportingText = if (error != null) {
-            { Text(text = error.message()) }
-        } else {
-            null
-        },
-        singleLine = singleLine,
-        minLines = minLines,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         visualTransformation = if (isPassword) {
             PasswordVisualTransformation()
         } else {
             VisualTransformation.None
         },
+        singleLine = singleLine,
+        minLines = minLines,
+        supportingText = error?.message(),
     )
 }

@@ -121,6 +121,7 @@ class FakeRepositoriesTest {
                 imageUrl = " ",
                 organizerId = "user-1",
                 organizerName = "Ana Souza",
+                isSecret = true,
             )
         )
 
@@ -129,10 +130,15 @@ class FakeRepositoriesTest {
         assertEquals("Karaokê", event.title)
         assertEquals("Studio A", event.venueName)
         assertNull(event.imageUrl)
+        assertTrue(event.isSecret)
 
         val feed = repository.observeEvents(EventFilter(query = "karaokê")).first()
         assertEquals(1, feed.size)
         assertEquals(event.id, feed.first().id)
+
+        val secrets = repository.observeEvents(EventFilter(onlySecret = true)).first()
+        assertTrue(secrets.any { it.id == event.id })
+        assertTrue(secrets.all { it.isSecret })
     }
 
     @Test

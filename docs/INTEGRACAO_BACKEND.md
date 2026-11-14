@@ -13,8 +13,10 @@ data/model/           -> modelos de domínio (User, Event, Message, Review...)
 data/repository/      -> CONTRATOS que o backend deve implementar
 data/fake/            -> implementação em memória usada enquanto não há Firebase
 feature/<área>/       -> ViewModels + UiState (regras de tela)
-ui/<área>/            -> telas Compose placeholder (consomem UiState)
-navigation/           -> rotas e NavHost
+ui/<área>/            -> telas Compose com o visual do app (consomem UiState)
+ui/common/            -> design system (StickerBox, botões, chips, campos, formatação)
+ui/theme/             -> paleta e MaterialTheme
+navigation/           -> rotas, NavHost e bottom tabs
 di/AppModule.kt       -> grafo Koin (ÚNICO ponto de troca fake -> Firebase)
 ```
 
@@ -67,9 +69,12 @@ Mapeamento sugerido de exceções:
 
 ### EventRepository
 
-- `observeEvents(filter)` → listener na collection `events`; aplicar filtros; ordenar por `startAt`.
+- `observeEvents(filter)` → listener na collection `events`; aplicar filtros (`query`, `categories`,
+  `dateFilter`, `onlyFree`, `onlySecret`); ordenar por `startAt`.
 - `observeEvent(eventId)` / `getEvent(eventId)` → documento do evento.
-- `createEvent(draft)` → `add()` com `createdAt`, `goingCount = 0`.
+- `createEvent(draft)` → `add()` com `createdAt`, `goingCount = 0` e `isSecret = draft.isSecret`.
+- **Segredinhos:** eventos com `isSecret = true` não aparecem no mapa (o `MapViewModel` filtra) e
+  devem ocultar `venueName`/`address` de quem não tem RSVP. Veja a observação nas regras de segurança.
 - `setRsvp(eventId, userId, going)` → transação:
   1. ler `events/{eventId}`;
   2. ler `events/{eventId}/rsvps/{userId}`;
@@ -97,8 +102,11 @@ users/{userId}
 
 events/{eventId}
   title, description, category, venueName, address, latitude, longitude,
-  startAt, endAt, isFree, price, capacity, imageUrl,
+  startAt, endAt, isFree, price, capacity, imageUrl, isSecret,
   organizerId, organizerName, goingCount, ratingAvg, ratingCount, createdAt
+
+events/{eventId}/private/location   # só eventos isSecret = true
+  venueName, address
 
 events/{eventId}/rsvps/{userId}
   createdAt
@@ -142,21 +150,38 @@ match /events/{eventId} {
 }
 ```
 
-## UI definitiva
+> **Segredinhos:** as regras do Firestore não escondem campos de um documento. Para eventos
+> `isSecret = true`, mantenha `venueName`/`address` genéricos em `events/{eventId}` e guarde o
+> endereço real em `events/{eventId}/private/location`, liberando a leitura só para quem tem
+> `events/{eventId}/rsvps/{uid}`. O repositório real decide quando revelar o local (ex.: 2 h antes).
 
-As telas atuais são placeholders. Para trocar a UI:
+## UI atual
 
-1. Mantenha as assinaturas das telas (`viewModel`, callbacks de navegação) ou recrie o `NavHost`.
-2. Colete estado sempre com `collectAsStateWithLifecycle()`.
-3. Use `UiState` para renderizar loading/erro/vazio e chame apenas os métodos `on...` do ViewModel.
+A UI já está integrada aos ViewModels (não é mais placeholder). Estrutura:
+
+- **Bottom tabs:** Descobrir (`EVENTS`), Mapa (`MAP`), Segredinhos (`SECRET`) e Perfil (`PROFILE`).
+- **Chat** não é uma aba global: é aberto pelo detalhe do evento (`event/{eventId}/chat`).
+- **Avaliações** também ficam no detalhe (`event/{eventId}/reviews`).
+- **Criação** aceita `?secret=true` para já nascer como segredinho.
+- **Interesses** aparecem depois do cadastro (`interests`) e podem ser editados no Perfil.
+
+Para manter o padrão ao evoluir as telas:
+
+1. Colete estado sempre com `collectAsStateWithLifecycle()`.
+2. Use `UiState` para renderizar loading/erro/vazio e chame apenas os métodos `on...` do ViewModel.
+3. Reaproveite `ui/common/` (`StickerBox`, `SociableButton`, `SociableChip`, `SociableTextField`,
+   `Pin`) para manter o visual consistente.
 4. Rotas que recebem `eventId`: `event/{eventId}`, `event/{eventId}/chat`, `event/{eventId}/reviews`.
 
-O mapa é um placeholder: `MapViewModel` já entrega `markers` com coordenadas e
-`isHappeningNow`, prontos para o Google Maps.
+O mapa ainda é ilustrativo (Canvas). `MapViewModel` entrega `markers` com categoria, preço,
+confirmados, capacidade e `isHappeningNow`; `ManausMapProjection` converte latitude/longitude em
+posições normalizadas. Para trocar pelo Google Maps Compose, substitua apenas o Canvas da
+`ui/map/MapScreen.kt` e use as coordenadas que já vêm nos markers. Eventos secretos são excluídos
+dos markers para não revelar o local.
 
 ## Google Sign-In (pós-MVP)
 
-Sem Google Sign-In no MVP: o botão da tela de boas-vindas está desabilitado.
+Sem Google Sign-In no MVP: a tela de boas-vindas oferece apenas entrar com e-mail ou criar conta.
 Para adicionar, inclua um método no `AuthRepository` (ex.: `signInWithGoogle(idToken)`) e trate o
 mesmo fluxo de criação/leitura do documento `users/{uid}`.
 

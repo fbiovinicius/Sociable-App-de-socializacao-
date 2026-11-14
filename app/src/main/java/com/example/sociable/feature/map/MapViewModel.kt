@@ -6,6 +6,7 @@ import com.example.sociable.core.AppError
 import com.example.sociable.core.time.TimeProvider
 import com.example.sociable.core.toAppError
 import com.example.sociable.data.model.DateFilter
+import com.example.sociable.data.model.EventCategory
 import com.example.sociable.data.model.EventFilter
 import com.example.sociable.data.repository.EventRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,7 @@ import java.time.Instant
 data class MapMarker(
     val eventId: String,
     val title: String,
+    val category: EventCategory,
     val venueName: String,
     val address: String,
     val latitude: Double,
@@ -30,6 +32,10 @@ data class MapMarker(
     val startAt: Instant,
     val endAt: Instant,
     val isHappeningNow: Boolean,
+    val isFree: Boolean,
+    val price: Double?,
+    val goingCount: Int,
+    val capacity: Int?,
 )
 
 data class MapUiState(
@@ -62,10 +68,12 @@ class MapViewModel(
                 }
                 .collect { events ->
                     val now = timeProvider.now()
-                    val markers = events.map { event ->
+                    // Segredinhos não aparecem no mapa para não revelar o local.
+                    val markers = events.filterNot { it.isSecret }.map { event ->
                         MapMarker(
                             eventId = event.id,
                             title = event.title,
+                            category = event.category,
                             venueName = event.venueName,
                             address = event.address,
                             latitude = event.latitude,
@@ -73,6 +81,10 @@ class MapViewModel(
                             startAt = event.startAt,
                             endAt = event.endAt,
                             isHappeningNow = event.isHappeningAt(now),
+                            isFree = event.isFree,
+                            price = event.price,
+                            goingCount = event.goingCount,
+                            capacity = event.capacity,
                         )
                     }
                     _uiState.update { it.copy(markers = markers, isLoading = false) }

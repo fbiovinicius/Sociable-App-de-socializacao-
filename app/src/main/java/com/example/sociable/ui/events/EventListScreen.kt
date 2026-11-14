@@ -1,153 +1,175 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
-
 package com.example.sociable.ui.events
 
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.sociable.data.model.DateFilter
 import com.example.sociable.data.model.EventCategory
 import com.example.sociable.feature.events.EventListViewModel
 import com.example.sociable.ui.common.EmptyState
 import com.example.sociable.ui.common.ErrorText
-import com.example.sociable.ui.common.SociableTopBar
+import com.example.sociable.ui.common.SociableChip
+import com.example.sociable.ui.theme.Coral
+import com.example.sociable.ui.theme.Plum
+import com.example.sociable.ui.theme.SCream
+import com.example.sociable.ui.theme.SInk
+import com.example.sociable.ui.theme.SSand
 
 @Composable
 fun EventListScreen(
     viewModel: EventListViewModel,
     onEventClick: (String) -> Unit,
     onCreateClick: () -> Unit,
-    onProfileClick: () -> Unit,
-    onMapClick: () -> Unit,
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
 
-    Scaffold(
-        topBar = {
-            SociableTopBar(
-                title = "Descobrir",
-                actions = {
-                    TextButton(onClick = onMapClick) { Text("Mapa") }
-                    TextButton(onClick = onProfileClick) { Text("Perfil") }
-                },
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = onCreateClick) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Criar evento")
-            }
-        },
-    ) { padding ->
-        Column(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SCream)
+            .statusBarsPadding(),
+    ) {
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, top = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedTextField(
-                value = state.filter.query,
-                onValueChange = viewModel::onQueryChange,
-                label = { Text("Buscar por nome, local...") },
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Descobrir",
+                    color = SInk,
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                )
+                Text(
+                    text = "O que tá rolando em Manaus?",
+                    color = Plum,
+                    fontSize = 14.sp,
+                )
+            }
+            SociableChip(
+                text = "+ Criar",
+                selected = true,
+                onClick = onCreateClick,
             )
+        }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                DateFilter.entries.forEach { dateFilter ->
-                    FilterChip(
-                        selected = state.filter.dateFilter == dateFilter,
-                        onClick = { viewModel.onDateFilterChange(dateFilter) },
-                        label = { Text(dateFilter.label) },
-                    )
-                }
-                FilterChip(
+        OutlinedTextField(
+            value = state.filter.query,
+            onValueChange = viewModel::onQueryChange,
+            placeholder = { Text("O que você quer viver?") },
+            singleLine = true,
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = SInk,
+                unfocusedBorderColor = SSand,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                cursorColor = Coral,
+            ),
+        )
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(DateFilter.entries) { dateFilter ->
+                SociableChip(
+                    text = dateFilter.label,
+                    selected = state.filter.dateFilter == dateFilter,
+                    onClick = { viewModel.onDateFilterChange(dateFilter) },
+                )
+            }
+            item {
+                SociableChip(
+                    text = "Grátis",
                     selected = state.filter.onlyFree,
                     onClick = { viewModel.onOnlyFreeChange(!state.filter.onlyFree) },
-                    label = { Text("Grátis") },
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(EventCategory.entries) { category ->
+                SociableChip(
+                    text = category.label,
+                    selected = category in state.filter.categories,
+                    onClick = { viewModel.onCategoryToggle(category) },
+                )
+            }
+        }
+
+        ErrorText(
+            error = state.error,
+            modifier = Modifier.padding(horizontal = 20.dp),
+        )
+
+        when {
+            state.isLoading && state.events.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = SInk)
+                }
+            }
+
+            state.events.isEmpty() -> {
+                EmptyState(
+                    title = "Nenhum evento encontrado",
+                    subtitle = "Tente mudar os filtros ou criar o seu próprio rolê.",
+                    modifier = Modifier.padding(top = 48.dp),
                 )
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                EventCategory.entries.forEach { category ->
-                    FilterChip(
-                        selected = category in state.filter.categories,
-                        onClick = { viewModel.onCategoryToggle(category) },
-                        label = { Text(category.label) },
-                    )
-                }
-            }
-
-            ErrorText(error = state.error)
-
-            when {
-                state.isLoading && state.events.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-
-                state.events.isEmpty() -> {
-                    EmptyState(
-                        title = "Nenhum evento encontrado",
-                        subtitle = "Tente mudar os filtros ou criar o seu próprio rolê.",
-                        modifier = Modifier.padding(top = 48.dp),
-                    )
-                }
-
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(items = state.events, key = { it.id }) { event ->
-                            EventCard(
-                                event = event,
-                                onClick = { onEventClick(event.id) },
-                            )
-                        }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 20.dp, end = 24.dp, top = 12.dp, bottom = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    items(items = state.events, key = { it.id }) { event ->
+                        EventCard(
+                            event = event,
+                            onClick = { onEventClick(event.id) },
+                        )
                     }
                 }
             }

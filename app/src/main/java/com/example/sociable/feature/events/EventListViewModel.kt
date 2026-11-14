@@ -75,6 +75,11 @@ class EventListViewModel(
         filter.update { it.copy(onlyFree = onlyFree) }
     }
 
+    /** Usado pela aba "Segredinhos" para mostrar só eventos com local oculto. */
+    fun onOnlySecretChange(onlySecret: Boolean) {
+        filter.update { it.copy(onlySecret = onlySecret) }
+    }
+
     fun clearFilters() {
         filter.value = EventFilter()
     }
