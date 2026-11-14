@@ -198,3 +198,33 @@ Pré-requisitos: JDK 17+ (Android Studio JBR serve), Android SDK e emulador/apar
 ```
 
 Conta de demonstração: `demo@sociable.app` / `123456`.
+
+## Implementação atual: Authentication e perfil
+
+Os contratos `AuthRepository` e `UserRepository` já possuem implementações Firebase:
+
+- `data/firebase/FirebaseAuthRepository.kt`: cadastro, login, logout, recuperação de senha e
+  observação do usuário autenticado. O cadastro cria `users/{uid}` após criar a conta no Auth.
+- `data/firebase/FirestoreUserRepository.kt`: observação em tempo real e atualização de nome,
+  biografia, foto e interesses.
+- `data/firebase/FirestoreUserMapper.kt`: conversão entre `User` e documento Firestore.
+- `data/firebase/FirebaseErrorMapper.kt`: tradução de erros Firebase para `AppError`.
+
+O Koin já injeta essas duas implementações reais. Eventos, chat e avaliações continuam usando
+os repositórios fake; a troca deles será feita em etapas separadas.
+
+### Dependência de coroutines
+
+O projeto usa `kotlinx-coroutines-play-services` para aguardar Tasks do Firebase com `await()`.
+
+### Regras iniciais do Firestore
+
+O arquivo `firestore.rules` na raiz contém regras iniciais para a coleção `users`. Publique-as no
+Firebase Console em **Firestore Database → Regras**. Usuários autenticados conseguem ler perfis,
+mas somente o dono do UID pode criar, alterar ou excluir o próprio documento. Antes de publicar
+em produção, revise a política de leitura de perfis conforme as necessidades de privacidade do app.
+
+### Documento `users/{uid}`
+
+Os campos persistidos são `name`, `email`, `bio`, `photoUrl`, `interests` (nomes dos valores do enum)
+e `createdAt` (Timestamp do Firestore). A senha nunca é gravada no Firestore.
