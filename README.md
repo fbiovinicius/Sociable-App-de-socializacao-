@@ -54,6 +54,29 @@ Saber o que está acontecendo na cidade ainda é difícil:
 
 **Navegação:** Explorar • Salvos • Conversas • Perfil
 
+## Status do desenvolvimento
+
+MVP com lógica das 5 features entregue e UI placeholder em Compose:
+
+- [x] Cadastro, login e recuperação de senha com validações
+- [x] Listagem, criação e filtros de eventos
+- [x] Confirmação de presença ("Eu vou!")
+- [x] Edição de perfil e interesses
+- [x] Chat e avaliações dos eventos exibidos no mapa
+
+O backend está simulado em memória (Koin) para a lógica rodar sem Firebase. O guia para os
+parceiros conectarem o Firebase e a UI definitiva está em
+[docs/INTEGRACAO_BACKEND.md](docs/INTEGRACAO_BACKEND.md).
+
+### Rodando
+
+```powershell
+.\gradlew.bat assembleDebug
+.\gradlew.bat testDebugUnitTest
+```
+
+Conta de demonstração: `demo@sociable.app` / `123456`.
+
 ## Autores
 
 - Fábio Vinícius
