@@ -1,4 +1,4 @@
-package com.example.sociable.ui
+﻿package com.example.sociable.ui
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
@@ -28,12 +28,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sociable.ui.theme.Coral
-import com.example.sociable.ui.theme.Cream
-import com.example.sociable.ui.theme.Ink
+import com.example.sociable.ui.theme.SCream
+import com.example.sociable.ui.theme.SInk
 import com.example.sociable.ui.theme.Peach
 import com.example.sociable.ui.theme.Plum
 import com.example.sociable.ui.theme.Rose
-import com.example.sociable.ui.theme.Sand
+import com.example.sociable.ui.theme.SSand
 
 /** Base do visual "adesivo": contorno roxo-noite + sombra sólida deslocada. */
 @Composable
@@ -50,13 +50,13 @@ fun StickerBox(
 ) {
     val shape = RoundedCornerShape(radius)
     Box(modifier.padding(end = shadow, bottom = shadow)) {
-        Box(Modifier.matchParentSize().offset(shadow, shadow).background(Ink, shape))
+        Box(Modifier.matchParentSize().offset(shadow, shadow).background(SInk, shape))
         Box(
             Modifier
                 .fillMaxWidth()
                 .let { if (height != null) it.height(height) else it }
                 .background(fill, shape)
-                .border(2.5.dp, Ink, shape)
+                .border(2.5.dp, SInk, shape)
                 .clip(shape)
                 .let { if (onClick != null) it.clickable(onClick = onClick) else it }
                 .padding(contentPadding),
@@ -76,12 +76,12 @@ fun SociableButton(
 ) {
     StickerBox(
         modifier = modifier.fillMaxWidth(),
-        fill = when { !enabled -> Peach; secondary -> Cream; else -> Coral },
+        fill = when { !enabled -> Peach; secondary -> SCream; else -> Coral },
         height = 56.dp,
         contentAlignment = Alignment.Center,
         onClick = if (enabled) onClick else null,
     ) {
-        Text(text, color = if (secondary) Ink else Cream, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(text, color = if (secondary) SInk else SCream, fontWeight = FontWeight.Bold, fontSize = 16.sp)
     }
 }
 
@@ -92,11 +92,11 @@ fun SociableChip(text: String, selected: Boolean, onClick: () -> Unit, modifier:
         modifier
             .clip(shape)
             .background(if (selected) Coral else Rose, shape)
-            .border(2.dp, Ink, shape)
+            .border(2.dp, SInk, shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 9.dp),
     ) {
-        Text(text, color = if (selected) Cream else Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Text(text, color = if (selected) SCream else SInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
     }
 }
 
@@ -118,13 +118,13 @@ fun SociableField(
         modifier = modifier.fillMaxWidth(),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = Coral,
-            unfocusedBorderColor = Sand,
+            unfocusedBorderColor = SSand,
             focusedContainerColor = Color.White,
             unfocusedContainerColor = Color.White,
             focusedLabelColor = Coral,
             unfocusedLabelColor = Plum,
-            focusedTextColor = Ink,
-            unfocusedTextColor = Ink,
+            focusedTextColor = SInk,
+            unfocusedTextColor = SInk,
         ),
     )
 }

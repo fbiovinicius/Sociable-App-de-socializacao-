@@ -1,4 +1,4 @@
-package com.example.sociable.ui
+﻿package com.example.sociable.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -53,14 +53,14 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sociable.ui.theme.Coral
-import com.example.sociable.ui.theme.Cream
-import com.example.sociable.ui.theme.Ink
+import com.example.sociable.ui.theme.SCream
+import com.example.sociable.ui.theme.SInk
 import com.example.sociable.ui.theme.Orange
 import com.example.sociable.ui.theme.OrangeSoft
 import com.example.sociable.ui.theme.Peach
 import com.example.sociable.ui.theme.Plum
 import com.example.sociable.ui.theme.Rose
-import com.example.sociable.ui.theme.Sand
+import com.example.sociable.ui.theme.SSand
 import kotlin.math.roundToInt
 
 /* Mapa ilustrativo de Manaus (desenhado em Canvas). Quando houver chave de API,
@@ -97,9 +97,9 @@ private fun DrawScope.drawCity() {
         if ((i * 7 + j * 5) % 11 == 0) {
             drawRoundRect(color = OrangeSoft, topLeft = topLeft, size = blockSize, cornerRadius = CornerRadius(18f))
         } else {
-            drawRoundRect(color = Cream, topLeft = topLeft, size = blockSize, cornerRadius = CornerRadius(10f))
+            drawRoundRect(color = SCream, topLeft = topLeft, size = blockSize, cornerRadius = CornerRadius(10f))
             drawRoundRect(
-                color = Sand.copy(alpha = 0.6f), topLeft = topLeft, size = blockSize,
+                color = SSand.copy(alpha = 0.6f), topLeft = topLeft, size = blockSize,
                 cornerRadius = CornerRadius(10f), style = Stroke(width = 2f),
             )
         }
@@ -128,9 +128,9 @@ private fun DrawScope.drawCity() {
     )
     avenues.forEach { (a, b) ->
         drawLine(color = Peach, start = a, end = b, strokeWidth = 44f, cap = StrokeCap.Round)
-        drawLine(color = Sand, start = a, end = b, strokeWidth = 34f, cap = StrokeCap.Round)
+        drawLine(color = SSand, start = a, end = b, strokeWidth = 34f, cap = StrokeCap.Round)
         drawLine(
-            color = Cream, start = a, end = b, strokeWidth = 3f,
+            color = SCream, start = a, end = b, strokeWidth = 3f,
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(18f, 14f)),
         )
     }
@@ -216,7 +216,7 @@ fun MapScreen(
         mapLabels.filter { scale >= it.minScale }.forEach { l ->
             Text(
                 l.text,
-                color = if (l.big) Plum else Ink.copy(alpha = 0.7f),
+                color = if (l.big) Plum else SInk.copy(alpha = 0.7f),
                 fontSize = if (l.big) 11.sp else 9.sp,
                 fontWeight = if (l.big) FontWeight.Bold else FontWeight.Medium,
                 fontStyle = if (l.text == "Rio Negro") FontStyle.Italic else FontStyle.Normal,
@@ -239,7 +239,7 @@ fun MapScreen(
                 .background(Coral.copy(alpha = 0.25f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Box(Modifier.size(12.dp).background(Coral, CircleShape).border(2.dp, Cream, CircleShape))
+            Box(Modifier.size(12.dp).background(Coral, CircleShape).border(2.dp, SCream, CircleShape))
         }
 
         // Pins (o selecionado fica por cima e maior)
@@ -259,10 +259,10 @@ fun MapScreen(
             )
             if (scale >= 1.8f) {
                 Text(
-                    ev.title, color = Ink, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                    ev.title, color = SInk, fontSize = 10.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier
                         .offset { IntOffset((sx - pw).roundToInt(), (sy + 4f).roundToInt()) }
-                        .background(Cream, RoundedCornerShape(6.dp))
+                        .background(SCream, RoundedCornerShape(6.dp))
                         .padding(horizontal = 4.dp, vertical = 1.dp),
                 )
             }
@@ -276,7 +276,7 @@ fun MapScreen(
                 singleLine = true, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Ink, unfocusedBorderColor = Ink,
+                    focusedBorderColor = SInk, unfocusedBorderColor = SInk,
                     focusedContainerColor = Color.White, unfocusedContainerColor = Color.White,
                 ),
             )
@@ -306,7 +306,7 @@ fun MapScreen(
         // Cartão do evento selecionado
         StickerBox(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),
-            fill = Cream, radius = 24.dp, contentPadding = PaddingValues(18.dp),
+            fill = SCream, radius = 24.dp, contentPadding = PaddingValues(18.dp),
         ) {
             Column {
                 if (selected != null) {
@@ -314,15 +314,15 @@ fun MapScreen(
                         "${selected.category.label} · ${selected.whenText}",
                         color = Plum, fontSize = 12.sp,
                     )
-                    Text(selected.title, color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(selected.title, color = SInk, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Text(
                         "${selected.priceText} · ${selected.distanceText} · ${selected.spotsText}",
-                        color = Ink, fontSize = 13.sp,
+                        color = SInk, fontSize = 13.sp,
                     )
                     Spacer(Modifier.height(12.dp))
                     SociableButton("Ver detalhes", onClick = { onOpenEvent(selected) })
                 } else {
-                    Text("Nenhum rolê encontrado", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Nenhum rolê encontrado", color = SInk, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Text("Tente outro filtro ou outra busca.", color = Plum, fontSize = 13.sp)
                 }
             }
@@ -333,9 +333,9 @@ fun MapScreen(
 @Composable
 private fun MapButton(text: String, onClick: () -> Unit) {
     StickerBox(
-        Modifier.width(48.dp), fill = Cream, radius = 14.dp, shadow = 3.dp, height = 44.dp,
+        Modifier.width(48.dp), fill = SCream, radius = 14.dp, shadow = 3.dp, height = 44.dp,
         contentAlignment = Alignment.Center, onClick = onClick,
     ) {
-        Text(text, color = Ink, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+        Text(text, color = SInk, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
     }
 }

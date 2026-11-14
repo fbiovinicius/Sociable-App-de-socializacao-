@@ -1,4 +1,4 @@
-package com.example.sociable.ui
+﻿package com.example.sociable.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,9 +20,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sociable.ui.theme.Coral
-import com.example.sociable.ui.theme.Ink
+import com.example.sociable.ui.theme.SInk
 import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.Sand
+import com.example.sociable.ui.theme.SSand
 import java.util.Calendar
 
 /* ---------- Textos ---------- */
@@ -102,7 +102,7 @@ class DateVisualTransformation : VisualTransformation {
 
 @Composable
 fun ScreenTitle(text: String, sub: String? = null) {
-    Text(text, color = Ink, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
+    Text(text, color = SInk, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
     if (sub != null) Text(sub, color = Plum, fontSize = 15.sp, modifier = Modifier.padding(bottom = 16.dp))
 }
 
@@ -142,7 +142,7 @@ fun SociableTextField(
         } else null,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = Coral,
-            unfocusedBorderColor = Sand,
+            unfocusedBorderColor = SSand,
             errorBorderColor = Coral,
             focusedContainerColor = Color.White,
             unfocusedContainerColor = Color.White,
@@ -150,9 +150,9 @@ fun SociableTextField(
             focusedLabelColor = Coral,
             unfocusedLabelColor = Plum,
             errorLabelColor = Coral,
-            focusedTextColor = Ink,
-            unfocusedTextColor = Ink,
-            errorTextColor = Ink,
+            focusedTextColor = SInk,
+            unfocusedTextColor = SInk,
+            errorTextColor = SInk,
         ),
     )
 }

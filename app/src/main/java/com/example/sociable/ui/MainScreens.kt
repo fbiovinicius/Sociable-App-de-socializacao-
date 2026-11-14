@@ -1,4 +1,4 @@
-package com.example.sociable.ui
+﻿package com.example.sociable.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -43,8 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sociable.R
 import com.example.sociable.ui.theme.Coral
-import com.example.sociable.ui.theme.Cream
-import com.example.sociable.ui.theme.Ink
+import com.example.sociable.ui.theme.SCream
+import com.example.sociable.ui.theme.SInk
 import com.example.sociable.ui.theme.OrangeSoft
 import com.example.sociable.ui.theme.Plum
 import com.example.sociable.ui.theme.Rose
@@ -60,7 +60,7 @@ fun SecretScreen(
     modifier: Modifier = Modifier,
 ) {
     val secrets = events.filter { it.category == Category.Secret }
-    Column(modifier.fillMaxSize().background(Cream).statusBarsPadding()) {
+    Column(modifier.fillMaxSize().background(SCream).statusBarsPadding()) {
         Column(Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp)) {
             ScreenTitle("Segredinhos ✦", "Rolês que não são divulgados por aí")
         }
@@ -76,14 +76,14 @@ fun SecretScreen(
                     contentPadding = PaddingValues(16.dp), onClick = { onOpen(e) },
                 ) {
                     Column {
-                        Text("🔒 Secreto", color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("🔒 Secreto", color = SInk, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         Text(
-                            e.title, color = Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold,
+                            e.title, color = SInk, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold,
                             modifier = Modifier.padding(top = 6.dp),
                         )
-                        Text("${e.whenText} · ${e.place}", color = Ink, fontSize = 13.sp)
+                        Text("${e.whenText} · ${e.place}", color = SInk, fontSize = 13.sp)
                         Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("👥 ${e.spotsText}", color = Ink, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                            Text("👥 ${e.spotsText}", color = SInk, fontSize = 13.sp, modifier = Modifier.weight(1f))
                             SociableChip(
                                 if (requested) "Convite enviado ✓" else "Pedir convite",
                                 selected = !requested, onClick = { onToggleJoin(e.id) },
@@ -114,15 +114,15 @@ fun ChatScreen(modifier: Modifier = Modifier) {
         if (text.isNotBlank()) { msgs.add(Msg(text.trim().capitalizeFirst(), true)); draft = "" }
     }
 
-    Column(modifier.fillMaxSize().background(Cream).statusBarsPadding().imePadding()) {
+    Column(modifier.fillMaxSize().background(SCream).statusBarsPadding().imePadding()) {
         Row(Modifier.padding(20.dp, 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Pin(R.drawable.ic_pin_people, size = 40.dp)
             Column(Modifier.padding(start = 12.dp)) {
-                Text("Roda de samba no Centro", color = Ink, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("Roda de samba no Centro", color = SInk, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text("7 confirmados", color = Plum, fontSize = 12.sp)
             }
         }
-        Box(Modifier.fillMaxWidth().height(2.5.dp).background(Ink))
+        Box(Modifier.fillMaxWidth().height(2.5.dp).background(SInk))
         LazyColumn(
             Modifier.weight(1f), contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -134,7 +134,7 @@ fun ChatScreen(modifier: Modifier = Modifier) {
                         fill = if (m.mine) Coral else Rose, radius = 18.dp, shadow = 0.dp,
                         contentPadding = PaddingValues(12.dp),
                     ) {
-                        Text(m.text, color = if (m.mine) Cream else Ink, fontSize = 14.sp)
+                        Text(m.text, color = if (m.mine) SCream else SInk, fontSize = 14.sp)
                     }
                 }
             }
@@ -154,7 +154,7 @@ fun ChatScreen(modifier: Modifier = Modifier) {
                 ),
                 keyboardActions = KeyboardActions(onSend = { send(draft) }),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Ink, unfocusedBorderColor = Ink,
+                    focusedBorderColor = SInk, unfocusedBorderColor = SInk,
                     focusedContainerColor = Color.White, unfocusedContainerColor = Color.White,
                 ),
             )
@@ -167,7 +167,7 @@ fun ChatScreen(modifier: Modifier = Modifier) {
 @Composable
 fun ProfileScreen(profile: UserProfile, onLogout: () -> Unit, modifier: Modifier = Modifier) {
     Column(
-        modifier.fillMaxSize().background(Cream).statusBarsPadding()
+        modifier.fillMaxSize().background(SCream).statusBarsPadding()
             .verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -175,7 +175,7 @@ fun ProfileScreen(profile: UserProfile, onLogout: () -> Unit, modifier: Modifier
         Pin(R.drawable.ic_pin_party, size = 88.dp)
         Spacer(Modifier.height(12.dp))
         Text(
-            profile.name.ifBlank { "Meu perfil" }, color = Ink, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold,
+            profile.name.ifBlank { "Meu perfil" }, color = SInk, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold,
         )
         val sub = listOfNotNull(
             if (profile.age > 0) "${profile.age} anos" else null,
@@ -185,7 +185,7 @@ fun ProfileScreen(profile: UserProfile, onLogout: () -> Unit, modifier: Modifier
 
         Spacer(Modifier.height(24.dp))
         Text(
-            "Meus interesses", color = Ink, fontWeight = FontWeight.Bold,
+            "Meus interesses", color = SInk, fontWeight = FontWeight.Bold,
             modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
         )
         if (profile.interests.isEmpty()) {
@@ -217,7 +217,7 @@ fun EventDetailScreen(
     val secret = event.category == Category.Secret
 
     Column(
-        modifier.fillMaxSize().background(Cream).statusBarsPadding()
+        modifier.fillMaxSize().background(SCream).statusBarsPadding()
             .verticalScroll(rememberScrollState()).padding(24.dp),
     ) {
         BackLink(onBack)
@@ -228,21 +228,21 @@ fun EventDetailScreen(
             SociableChip(event.category.label, selected = true, onClick = {})
         }
         Spacer(Modifier.height(12.dp))
-        Text(event.title, color = Ink, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+        Text(event.title, color = SInk, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
         Spacer(Modifier.height(16.dp))
         StickerBox(Modifier.fillMaxWidth(), fill = Rose, radius = 20.dp, contentPadding = PaddingValues(16.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("📅 ${event.whenText}", color = Ink, fontSize = 14.sp)
-                Text("📍 ${event.place}", color = Ink, fontSize = 14.sp)
-                Text("💰 ${event.priceText}", color = Ink, fontSize = 14.sp)
-                Text("🧭 ${event.distanceText} de você", color = Ink, fontSize = 14.sp)
-                Text("👥 ${shown.spotsText}", color = Ink, fontSize = 14.sp)
+                Text("📅 ${event.whenText}", color = SInk, fontSize = 14.sp)
+                Text("📍 ${event.place}", color = SInk, fontSize = 14.sp)
+                Text("💰 ${event.priceText}", color = SInk, fontSize = 14.sp)
+                Text("🧭 ${event.distanceText} de você", color = SInk, fontSize = 14.sp)
+                Text("👥 ${shown.spotsText}", color = SInk, fontSize = 14.sp)
             }
         }
         Spacer(Modifier.height(20.dp))
-        Text("Sobre o rolê", color = Ink, fontWeight = FontWeight.Bold)
+        Text("Sobre o rolê", color = SInk, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
-        Text(event.description, color = Ink, fontSize = 14.sp)
+        Text(event.description, color = SInk, fontSize = 14.sp)
         if (secret) {
             Spacer(Modifier.height(12.dp))
             Text("🔒 O endereço completo é revelado 2 h antes, só para quem tem convite.", color = Plum, fontSize = 13.sp)
@@ -291,7 +291,7 @@ fun CreateEventScreen(
     val ok = title.isNotBlank() && place.isNotBlank() && whenText.isNotBlank() && (free || price.isNotBlank())
 
     Column(
-        modifier.fillMaxSize().background(Cream).statusBarsPadding().imePadding()
+        modifier.fillMaxSize().background(SCream).statusBarsPadding().imePadding()
             .verticalScroll(rememberScrollState()).padding(24.dp),
     ) {
         BackLink(onBack)
@@ -306,13 +306,13 @@ fun CreateEventScreen(
         Spacer(Modifier.height(12.dp))
         SociableTextField("Dia e horário (ex.: Sáb · 20h)", whenText, { whenText = it })
         Spacer(Modifier.height(20.dp))
-        Text("Tipo", color = Ink, fontWeight = FontWeight.Bold)
+        Text("Tipo", color = SInk, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Category.values().forEach { SociableChip(it.label, category == it, { category = it }) }
         }
         Spacer(Modifier.height(20.dp))
-        Text("Valor", color = Ink, fontWeight = FontWeight.Bold)
+        Text("Valor", color = SInk, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SociableChip("Gratuito", free, { free = true })

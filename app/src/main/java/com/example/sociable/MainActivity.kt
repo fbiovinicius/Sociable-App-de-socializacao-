@@ -8,6 +8,7 @@ import com.example.sociable.ui.SociableApp
 import com.example.sociable.ui.theme.SociableTheme
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

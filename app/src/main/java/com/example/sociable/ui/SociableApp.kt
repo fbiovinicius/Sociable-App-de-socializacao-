@@ -1,4 +1,4 @@
-package com.example.sociable.ui
+﻿package com.example.sociable.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.sociable.R
-import com.example.sociable.ui.theme.Cream
+import com.example.sociable.ui.theme.SCream
 import com.example.sociable.ui.theme.Rose
 
 enum class Screen { Welcome, EmailLogin, Signup, Interests, Map, Secret, Chat, Profile, EventDetail, CreateEvent }
@@ -97,10 +97,10 @@ fun SociableApp() {
         )
 
         else -> Scaffold(
-            containerColor = Cream,
+            containerColor = SCream,
             bottomBar = {
                 if (screen in tabs.map { it.screen }) {
-                    NavigationBar(containerColor = Cream) {
+                    NavigationBar(containerColor = SCream) {
                         tabs.forEach { t ->
                             NavigationBarItem(
                                 selected = screen == t.screen,

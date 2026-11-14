@@ -1,4 +1,4 @@
-package com.example.sociable.ui
+﻿package com.example.sociable.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -44,8 +44,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.sociable.R
 import com.example.sociable.ui.theme.Coral
-import com.example.sociable.ui.theme.Cream
-import com.example.sociable.ui.theme.Ink
+import com.example.sociable.ui.theme.SCream
+import com.example.sociable.ui.theme.SInk
 import com.example.sociable.ui.theme.OrangeSoft
 import com.example.sociable.ui.theme.Plum
 
@@ -59,7 +59,7 @@ private val EmailKeyboard = KeyboardOptions(
 fun WelcomeScreen(onGoogle: (email: String) -> Unit, onEmail: () -> Unit) {
     var showGoogle by remember { mutableStateOf(false) }
 
-    Column(Modifier.fillMaxSize().background(Cream).systemBarsPadding().padding(24.dp)) {
+    Column(Modifier.fillMaxSize().background(SCream).systemBarsPadding().padding(24.dp)) {
         Column(
             Modifier.weight(1f).fillMaxWidth(),
             verticalArrangement = Arrangement.Center,
@@ -73,7 +73,7 @@ fun WelcomeScreen(onGoogle: (email: String) -> Unit, onEmail: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             Text(
                 "Descubra o que está rolando em Manaus\ne vá com gente nova, sem compromisso",
-                color = Ink, fontSize = 15.sp, textAlign = TextAlign.Center,
+                color = SInk, fontSize = 15.sp, textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(20.dp))
             SociableChip("🟢 128 pessoas online agora", selected = false, onClick = {})
@@ -106,12 +106,12 @@ private fun GoogleSignInDialog(onDismiss: () -> Unit, onConfirm: (String) -> Uni
     val valid = isValidEmail(email)
 
     Dialog(onDismissRequest = onDismiss) {
-        StickerBox(Modifier.fillMaxWidth(), fill = Cream, radius = 24.dp, contentPadding = PaddingValues(20.dp)) {
+        StickerBox(Modifier.fillMaxWidth(), fill = SCream, radius = 24.dp, contentPadding = PaddingValues(20.dp)) {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("G", color = Coral, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
                     Spacer(Modifier.width(10.dp))
-                    Text("Entrar com o Google", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("Entrar com o Google", color = SInk, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                 }
                 Spacer(Modifier.height(6.dp))
                 Text("Escolha a conta Google que você quer usar no Sociable.", color = Plum, fontSize = 13.sp)
@@ -142,7 +142,7 @@ fun EmailLoginScreen(onBack: () -> Unit, onLogin: (email: String) -> Unit, onCre
     val passOk = password.length >= 6
 
     Column(
-        Modifier.fillMaxSize().background(Cream).systemBarsPadding().imePadding()
+        Modifier.fillMaxSize().background(SCream).systemBarsPadding().imePadding()
             .verticalScroll(rememberScrollState()).padding(24.dp),
     ) {
         BackLink(onBack)
@@ -201,7 +201,7 @@ fun SignupScreen(
     val ok = name.isNotBlank() && age != null && age >= 18 && gender.isNotEmpty() && city.isNotBlank()
 
     Column(
-        Modifier.fillMaxSize().background(Cream).systemBarsPadding().imePadding()
+        Modifier.fillMaxSize().background(SCream).systemBarsPadding().imePadding()
             .verticalScroll(rememberScrollState()).padding(24.dp),
     ) {
         ScreenTitle("Quem é você?", "Só o básico pra começar")
@@ -229,11 +229,11 @@ fun SignupScreen(
             Text(
                 if (underage) "Você precisa ter 18 anos ou mais para usar o Sociable."
                 else "✦ O Sociable é só para maiores de 18 anos.",
-                color = if (underage) Cream else Ink, fontSize = 13.sp,
+                color = if (underage) SCream else SInk, fontSize = 13.sp,
             )
         }
         Spacer(Modifier.height(20.dp))
-        Text("Gênero", color = Ink, fontWeight = FontWeight.Bold)
+        Text("Gênero", color = SInk, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Masculino", "Feminino", "Não-binário", "Prefiro não dizer").forEach {
@@ -258,11 +258,11 @@ fun SignupScreen(
 fun InterestsScreen(onNext: (List<String>) -> Unit) {
     val selected = remember { mutableStateListOf<String>() }
 
-    Column(Modifier.fillMaxSize().background(Cream).systemBarsPadding().padding(24.dp)) {
+    Column(Modifier.fillMaxSize().background(SCream).systemBarsPadding().padding(24.dp)) {
         ScreenTitle("Do seu jeito", "Escolha até $MAX_INTERESTS · ${selected.size} de $MAX_INTERESTS")
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             interestGroups.forEach { (group, items) ->
-                Text(group, color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp))
+                Text(group, color = SInk, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items.forEach { t ->
                         SociableChip(t, t in selected, {
