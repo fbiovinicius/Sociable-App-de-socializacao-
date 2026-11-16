@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sociable.core.AppError
 import com.example.sociable.core.AppResult
+import com.example.sociable.core.notifications.EventReminder
+import com.example.sociable.core.notifications.ReminderScheduler
 import com.example.sociable.core.toAppError
 import com.example.sociable.data.model.Event
 import com.example.sociable.data.model.RatingSummary
@@ -33,6 +35,7 @@ class EventDetailViewModel(
     private val eventRepository: EventRepository,
     private val reviewRepository: ReviewRepository,
     private val authRepository: AuthRepository,
+    private val reminderScheduler: ReminderScheduler,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EventDetailUiState())
@@ -74,11 +77,32 @@ class EventDetailViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isTogglingRsvp = true, error = null) }
             when (val result = eventRepository.setRsvp(eventId, user.id, going)) {
-                is AppResult.Success -> _uiState.update { it.copy(isTogglingRsvp = false) }
+                is AppResult.Success -> {
+                    updateReminder(going)
+                    _uiState.update { it.copy(isTogglingRsvp = false) }
+                }
                 is AppResult.Failure -> _uiState.update {
                     it.copy(isTogglingRsvp = false, error = result.error)
                 }
             }
+        }
+    }
+
+    /**
+     * Confirma presença → lembrete local 1 h antes (bloco F1).
+     * Cancela presença → remove o lembrete.
+     */
+    private fun updateReminder(going: Boolean) {
+        val event = _uiState.value.event
+        when {
+            going && event != null -> reminderScheduler.schedule(
+                EventReminder(
+                    eventId = event.id,
+                    title = event.title,
+                    startAtMillis = event.startAt.toEpochMilli(),
+                ),
+            )
+            !going -> reminderScheduler.cancel(eventId)
         }
     }
 

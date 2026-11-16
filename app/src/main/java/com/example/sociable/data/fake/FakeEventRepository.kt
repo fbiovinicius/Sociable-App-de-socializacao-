@@ -6,6 +6,7 @@ import com.example.sociable.core.time.TimeProvider
 import com.example.sociable.data.model.Event
 import com.example.sociable.data.model.EventDraft
 import com.example.sociable.data.model.EventFilter
+import com.example.sociable.data.model.EventStatus
 import com.example.sociable.data.model.RsvpInfo
 import com.example.sociable.data.model.matches
 import com.example.sociable.data.repository.EventRepository
@@ -24,7 +25,7 @@ class FakeEventRepository(
         db.events.map { events ->
             val now = timeProvider.now()
             events
-                .filter { filter.matches(it, now) }
+                .filter { it.status == EventStatus.ACTIVE && filter.matches(it, now) }
                 .sortedWith(compareBy({ it.startAt }, { it.title }))
         }
 

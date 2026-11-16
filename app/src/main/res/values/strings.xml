@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Sociable</string>
+    <string name="channel_reminders_name">Lembretes de rolês</string>
+    <string name="channel_reminders_description">Avisa pouco antes dos eventos em que você confirmou presença</string>
 </resources>
