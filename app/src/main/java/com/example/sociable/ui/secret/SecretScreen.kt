@@ -35,10 +35,7 @@ import com.example.sociable.ui.common.StickerBox
 import com.example.sociable.ui.common.formatEventDay
 import com.example.sociable.ui.common.formatPriceText
 import com.example.sociable.ui.common.formatSpots
-import com.example.sociable.ui.theme.OrangeSoft
-import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.SCream
-import com.example.sociable.ui.theme.SInk
+import com.example.sociable.ui.theme.SociableTheme
 
 @Composable
 fun SecretScreen(
@@ -55,11 +52,11 @@ fun SecretScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SCream)
+            .background(SociableTheme.background)
             .statusBarsPadding(),
     ) {
         Column(modifier = Modifier.padding(start = 20.dp, end = 24.dp, top = 16.dp)) {
-            ScreenTitle("Segredinhos ✦", sub = "Rolês que não são divulgados por aí")
+            ScreenTitle("Segredinhos", sub = "Rolês que não são divulgados por aí")
         }
 
         ErrorText(
@@ -74,7 +71,7 @@ fun SecretScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator(color = SInk)
+                    CircularProgressIndicator(color = SociableTheme.ink)
                 }
             }
 
@@ -103,7 +100,7 @@ fun SecretScreen(
                     items(items = state.events, key = { it.id }) { event ->
                         StickerBox(
                             modifier = Modifier.fillMaxWidth(),
-                            fill = OrangeSoft,
+                            fill = SociableTheme.accentSoft,
                             radius = 22.dp,
                             contentPadding = PaddingValues(16.dp),
                             onClick = { onEventClick(event.id) },
@@ -111,25 +108,25 @@ fun SecretScreen(
                             Column {
                                 Text(
                                     text = "🔒 Secreto",
-                                    color = SInk,
+                                    color = SociableTheme.ink,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                 )
                                 Text(
                                     text = event.title,
-                                    color = SInk,
+                                    color = SociableTheme.ink,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     modifier = Modifier.padding(top = 6.dp),
                                 )
                                 Text(
                                     text = "${formatEventDay(event.startAt)} · ${ManausTime.time(event.startAt)}",
-                                    color = SInk,
+                                    color = SociableTheme.ink,
                                     fontSize = 13.sp,
                                 )
                                 Text(
-                                    text = "📍 Local revelado 2 h antes para quem confirmar",
-                                    color = Plum,
+                                    text = "📍 Local revelado para quem confirmar presença",
+                                    color = SociableTheme.muted,
                                     fontSize = 12.sp,
                                 )
                                 Row(
@@ -140,7 +137,7 @@ fun SecretScreen(
                                 ) {
                                     Text(
                                         text = "👥 ${formatSpots(event.goingCount, event.capacity)} · ${formatPriceText(event.isFree, event.price)}",
-                                        color = SInk,
+                                        color = SociableTheme.ink,
                                         fontSize = 13.sp,
                                         modifier = Modifier.weight(1f),
                                     )

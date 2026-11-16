@@ -34,14 +34,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.sociable.R
 import com.example.sociable.core.time.ManausTime
 import com.example.sociable.data.model.EventCategory
 import com.example.sociable.feature.map.MapMarker
@@ -55,13 +57,12 @@ import com.example.sociable.ui.common.formatEventDay
 import com.example.sociable.ui.common.formatPriceText
 import com.example.sociable.ui.common.formatSpots
 import com.example.sociable.ui.common.pinRes
-import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.Rose
-import com.example.sociable.ui.theme.SCream
-import com.example.sociable.ui.theme.SInk
+import com.example.sociable.ui.theme.SociableTheme
+import com.example.sociable.ui.theme.isSociableDarkTheme
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
@@ -118,6 +119,19 @@ fun MapScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // No modo escuro o mapa também fica escuro; sem estilo, ele continuaria claro.
+    // Usa o mesmo critério do tema do app (Perfil → Aparência), não só o do sistema.
+    val darkTheme = isSociableDarkTheme()
+    val mapStyleOptions = remember(darkTheme) {
+        if (darkTheme) {
+            runCatching {
+                MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style_dark)
+            }.getOrNull()
+        } else {
+            null
+        }
+    }
+
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(MANAUS_CENTER, DEFAULT_ZOOM)
     }
@@ -163,12 +177,15 @@ fun MapScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Rose),
+            .background(SociableTheme.chip),
     ) {
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
-            properties = MapProperties(isMyLocationEnabled = hasLocationPermission),
+            properties = MapProperties(
+                isMyLocationEnabled = hasLocationPermission,
+                mapStyleOptions = mapStyleOptions,
+            ),
             uiSettings = MapUiSettings(
                 zoomControlsEnabled = false,
                 myLocationButtonEnabled = false,
@@ -194,6 +211,7 @@ fun MapScreen(
                     Pin(
                         id = pinRes(marker.category, isSecret = false),
                         size = if (isSelected) 52.dp else 40.dp,
+                        contentDescription = "${marker.title} · ${marker.category.label}",
                     )
                 }
             }
@@ -214,10 +232,10 @@ fun MapScreen(
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = SInk,
-                    unfocusedBorderColor = SInk,
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
+                    focusedBorderColor = SociableTheme.ink,
+                    unfocusedBorderColor = SociableTheme.ink,
+                    focusedContainerColor = SociableTheme.surface,
+                    unfocusedContainerColor = SociableTheme.surface,
                 ),
             )
             Spacer(modifier = Modifier.height(10.dp))
@@ -240,7 +258,7 @@ fun MapScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
-                    color = SInk,
+                    color = SociableTheme.ink,
                     strokeWidth = 2.dp,
                 )
             }
@@ -254,13 +272,13 @@ fun MapScreen(
                 .padding(end = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            MapButton("+") {
+            MapButton("+", "Aumentar zoom") {
                 scope.launch { cameraPositionState.animate(CameraUpdateFactory.zoomIn()) }
             }
-            MapButton("−") {
+            MapButton("−", "Diminuir zoom") {
                 scope.launch { cameraPositionState.animate(CameraUpdateFactory.zoomOut()) }
             }
-            MapButton("◎") {
+            MapButton("◎", "Centralizar no mapa de Manaus") {
                 scope.launch {
                     cameraPositionState.animate(
                         CameraUpdateFactory.newLatLngZoom(MANAUS_CENTER, DEFAULT_ZOOM),
@@ -275,7 +293,7 @@ fun MapScreen(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(16.dp),
-            fill = SCream,
+            fill = SociableTheme.surface,
             radius = 24.dp,
             contentPadding = PaddingValues(18.dp),
         ) {
@@ -283,23 +301,23 @@ fun MapScreen(
                 if (selected != null) {
                     Text(
                         text = "${selected.category.label} · ${formatEventDay(selected.startAt)} · ${ManausTime.time(selected.startAt)}",
-                        color = Plum,
+                        color = SociableTheme.muted,
                         fontSize = 12.sp,
                     )
                     Text(
                         text = selected.title,
-                        color = SInk,
+                        color = SociableTheme.ink,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = "${formatPriceText(selected.isFree, selected.price)} · ${formatSpots(selected.goingCount, selected.capacity)}",
-                        color = SInk,
+                        color = SociableTheme.ink,
                         fontSize = 13.sp,
                     )
                     Text(
                         text = "📍 ${selected.venueName} · ${selected.address}",
-                        color = Plum,
+                        color = SociableTheme.muted,
                         fontSize = 12.sp,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -310,13 +328,13 @@ fun MapScreen(
                 } else {
                     Text(
                         text = "Nenhum rolê encontrado",
-                        color = SInk,
+                        color = SociableTheme.ink,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = "Tente outro filtro ou outra busca.",
-                        color = Plum,
+                        color = SociableTheme.muted,
                         fontSize = 13.sp,
                     )
                 }
@@ -326,21 +344,22 @@ fun MapScreen(
 }
 
 @Composable
-private fun MapButton(text: String, onClick: () -> Unit) {
+private fun MapButton(text: String, description: String, onClick: () -> Unit) {
     StickerBox(
         modifier = Modifier.width(48.dp),
-        fill = SCream,
+        fill = SociableTheme.surface,
         radius = 14.dp,
         shadow = 3.dp,
-        height = 44.dp,
+        height = 48.dp,
         contentAlignment = Alignment.Center,
         onClick = onClick,
     ) {
         Text(
             text = text,
-            color = SInk,
+            color = SociableTheme.ink,
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
+            modifier = Modifier.semantics { contentDescription = description },
         )
     }
 }

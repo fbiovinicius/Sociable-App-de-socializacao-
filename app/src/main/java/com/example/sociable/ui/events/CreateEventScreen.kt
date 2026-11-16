@@ -37,11 +37,7 @@ import com.example.sociable.ui.common.SociableButton
 import com.example.sociable.ui.common.SociableChip
 import com.example.sociable.ui.common.StickerBox
 import com.example.sociable.ui.common.message
-import com.example.sociable.ui.theme.OrangeSoft
-import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.Rose
-import com.example.sociable.ui.theme.SCream
-import com.example.sociable.ui.theme.SInk
+import com.example.sociable.ui.theme.SociableTheme
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -64,7 +60,7 @@ fun CreateEventScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SCream)
+            .background(SociableTheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
@@ -93,7 +89,7 @@ fun CreateEventScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(text = "Tipo", color = SInk, fontWeight = FontWeight.Bold)
+        Text(text = "Tipo", color = SociableTheme.ink, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -116,20 +112,20 @@ fun CreateEventScreen(
             Spacer(modifier = Modifier.height(10.dp))
             StickerBox(
                 modifier = Modifier.fillMaxWidth(),
-                fill = OrangeSoft,
+                fill = SociableTheme.accentSoft,
                 radius = 14.dp,
                 contentPadding = PaddingValues(14.dp),
             ) {
                 Text(
                     text = "O local fica oculto no feed e só é revelado aos convidados 2 h antes.",
-                    color = SInk,
+                    color = SociableTheme.ink,
                     fontSize = 13.sp,
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
-        Text(text = "Local", color = SInk, fontWeight = FontWeight.Bold)
+        Text(text = "Local", color = SociableTheme.ink, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         FormTextField(
             value = state.venueName,
@@ -165,11 +161,11 @@ fun CreateEventScreen(
         }
 
         Spacer(modifier = Modifier.height(20.dp))
-        Text(text = "Quando", color = SInk, fontWeight = FontWeight.Bold)
+        Text(text = "Quando", color = SociableTheme.ink, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         StickerBox(
             modifier = Modifier.fillMaxWidth(),
-            fill = Rose,
+            fill = SociableTheme.chip,
             radius = 18.dp,
             contentPadding = PaddingValues(14.dp),
         ) {
@@ -190,7 +186,7 @@ fun CreateEventScreen(
                 if (periodError != null) {
                     Text(
                         text = periodError.message(),
-                        color = SInk,
+                        color = SociableTheme.ink,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                     )
@@ -199,7 +195,7 @@ fun CreateEventScreen(
         }
 
         Spacer(modifier = Modifier.height(20.dp))
-        Text(text = "Valor", color = SInk, fontWeight = FontWeight.Bold)
+        Text(text = "Valor", color = SociableTheme.ink, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SociableChip(
@@ -263,13 +259,13 @@ private fun PeriodRow(
     Column {
         Text(
             text = label,
-            color = Plum,
+            color = SociableTheme.muted,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
         )
         Text(
             text = value,
-            color = SInk,
+            color = SociableTheme.ink,
             fontSize = 14.sp,
             modifier = Modifier.padding(bottom = 6.dp),
         )

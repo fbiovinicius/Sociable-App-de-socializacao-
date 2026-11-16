@@ -2,11 +2,142 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function eventPath(eventId) {
+      return /databases/$(database)/documents/events/$(eventId);
+    }
+
+    function ownRsvpPath(eventId) {
+      return /databases/$(database)/documents/events/$(eventId)/rsvps/$(request.auth.uid);
+    }
+
+    function eventExists(eventId) {
+      return exists(eventPath(eventId));
+    }
+
+    function eventData(eventId) {
+      return get(eventPath(eventId)).data;
+    }
+
+    function eventGoingCount(eventId) {
+      return eventData(eventId).get('goingCount', 0);
+    }
+
+    function eventCapacity(eventId) {
+      return eventData(eventId).get('capacity', null);
+    }
+
+    function isEventOrganizer(eventId) {
+      return signedIn() && eventExists(eventId)
+        && eventData(eventId).organizerId == request.auth.uid;
+    }
+
+    function isEventOrganizerAfterWrite(eventId) {
+      return signedIn()
+        && getAfter(eventPath(eventId)).data.organizerId == request.auth.uid;
+    }
+
+    function hasRsvp(eventId) {
+      return signedIn() && exists(ownRsvpPath(eventId));
+    }
+
+    function isEventParticipant(eventId) {
+      return isEventOrganizer(eventId) || hasRsvp(eventId);
+    }
+
+    function onlyGoingCountChanged() {
+      return request.resource.data.diff(resource.data)
+        .affectedKeys().hasOnly(['goingCount']);
+    }
+
+    function goingCountMatchesOwnRsvp(eventId) {
+      let delta = request.resource.data.goingCount - resource.data.goingCount;
+      return (delta == 1 && existsAfter(ownRsvpPath(eventId)))
+        || (delta == -1 && !existsAfter(ownRsvpPath(eventId)));
+    }
+
     match /users/{userId} {
-      // Usuários autenticados podem consultar perfis; cada pessoa só altera o próprio perfil.
-      allow read: if request.auth != null;
-      allow create, update, delete: if request.auth != null
-                                    && request.auth.uid == userId;
+      // Perfis são visíveis para usuários autenticados (nome, foto, bio).
+      allow read: if signedIn();
+      allow create: if signedIn() && request.auth.uid == userId;
+      // E-mail e data de criação são imutáveis pelo cliente.
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if signedIn() && request.auth.uid == userId;
+    }
+
+    match /events/{eventId} {
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.organizerId == request.auth.uid
+        && request.resource.data.status == 'ACTIVE'
+        && request.resource.data.goingCount == 0
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 120;
+
+      // O organizador edita o evento; qualquer pessoa só altera o contador
+      // junto com o próprio RSVP (o contador é desnormalizado).
+      allow update: if signedIn() && (
+        (
+          resource.data.organizerId == request.auth.uid
+          && request.resource.data.organizerId == resource.data.organizerId
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.goingCount == resource.data.goingCount
+        )
+        ||
+        (
+          onlyGoingCountChanged()
+          && goingCountMatchesOwnRsvp(eventId)
+          && (
+            eventCapacity(eventId) == null
+            || request.resource.data.goingCount <= eventCapacity(eventId)
+          )
+        )
+      );
+
+      allow delete: if signedIn() && resource.data.organizerId == request.auth.uid;
+
+      match /rsvps/{userId} {
+        allow read: if signedIn()
+          && (request.auth.uid == userId || isEventOrganizer(eventId));
+
+        // Criar RSVP exige que a mesma transação tenha incrementado goingCount.
+        allow create: if signedIn()
+          && request.auth.uid == userId
+          && request.resource.data.userId == userId
+          && request.resource.data.checkedIn == false
+          && (
+            eventCapacity(eventId) == null
+            || eventGoingCount(eventId) < eventCapacity(eventId)
+          )
+          && getAfter(eventPath(eventId)).data.get('goingCount', 0)
+            == eventGoingCount(eventId) + 1;
+
+        // Check-in é feito pelo organizador.
+        allow update: if signedIn()
+          && isEventOrganizer(eventId)
+          && request.resource.data.diff(resource.data)
+            .affectedKeys().hasOnly(['checkedIn', 'checkedInAt']);
+
+        allow delete: if signedIn()
+          && request.auth.uid == userId
+          && getAfter(eventPath(eventId)).data.get('goingCount', 0)
+            == eventGoingCount(eventId) - 1;
+      }
+
+      // Local real de um segredinho: só organizador e quem confirmou presença.
+      match /private/{documentId} {
+        allow read: if isEventParticipant(eventId);
+        allow write: if isEventOrganizer(eventId) || isEventOrganizerAfterWrite(eventId);
+      }
     }
   }
 }

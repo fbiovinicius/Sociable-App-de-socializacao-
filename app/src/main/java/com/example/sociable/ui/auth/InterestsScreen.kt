@@ -1,7 +1,6 @@
 package com.example.sociable.ui.auth
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,9 +31,8 @@ import com.example.sociable.ui.common.ErrorText
 import com.example.sociable.ui.common.ScreenTitle
 import com.example.sociable.ui.common.SociableButton
 import com.example.sociable.ui.common.SociableChip
-import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.SCream
-import com.example.sociable.ui.theme.SInk
+import com.example.sociable.ui.common.SociableTextLink
+import com.example.sociable.ui.theme.SociableTheme
 
 private const val MAX_INTERESTS = 5
 
@@ -77,7 +75,7 @@ fun InterestsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SCream)
+            .background(SociableTheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(24.dp),
@@ -94,7 +92,7 @@ fun InterestsScreen(
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator(color = SInk)
+                CircularProgressIndicator(color = SociableTheme.ink)
             }
         } else {
             Column(
@@ -105,7 +103,7 @@ fun InterestsScreen(
                 interestGroups.forEach { (group, items) ->
                     Text(
                         text = group,
-                        color = SInk,
+                        color = SociableTheme.ink,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(top = 12.dp, bottom = 8.dp),
                     )
@@ -130,7 +128,7 @@ fun InterestsScreen(
                 if (state.interests.size == MAX_INTERESTS) {
                     Text(
                         text = "Você chegou ao limite de $MAX_INTERESTS. Toque em um para trocar.",
-                        color = Plum,
+                        color = SociableTheme.muted,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 12.dp),
                     )
@@ -146,15 +144,10 @@ fun InterestsScreen(
             enabled = state.interests.isNotEmpty(),
             isLoading = state.isSaving,
         )
-        Text(
+        SociableTextLink(
             text = "Agora não",
-            color = Plum,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onSkip)
-                .padding(top = 14.dp),
+            onClick = onSkip,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }

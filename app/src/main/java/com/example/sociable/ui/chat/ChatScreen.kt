@@ -43,11 +43,7 @@ import com.example.sociable.ui.common.SociableChip
 import com.example.sociable.ui.common.SociableTextField
 import com.example.sociable.ui.common.StickerBox
 import com.example.sociable.ui.common.message
-import com.example.sociable.ui.theme.Coral
-import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.Rose
-import com.example.sociable.ui.theme.SCream
-import com.example.sociable.ui.theme.SInk
+import com.example.sociable.ui.theme.SociableTheme
 
 @Composable
 fun ChatScreen(
@@ -67,7 +63,7 @@ fun ChatScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SCream)
+            .background(SociableTheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding(),
@@ -83,13 +79,13 @@ fun ChatScreen(
             Column {
                 Text(
                     text = state.eventTitle.ifBlank { "Chat do evento" },
-                    color = SInk,
+                    color = SociableTheme.ink,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                 )
                 Text(
                     text = "${state.goingCount} confirmados",
-                    color = Plum,
+                    color = SociableTheme.muted,
                     fontSize = 12.sp,
                 )
             }
@@ -98,7 +94,7 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(2.5.dp)
-                .background(SInk),
+                .background(SociableTheme.ink),
         )
 
         when {
@@ -109,7 +105,7 @@ fun ChatScreen(
                         .fillMaxWidth(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator(color = SInk)
+                    CircularProgressIndicator(color = SociableTheme.ink)
                 }
             }
 
@@ -140,25 +136,25 @@ fun ChatScreen(
                         ) {
                             Text(
                                 text = if (isMine) "Você" else message.authorName,
-                                color = Plum,
+                                color = SociableTheme.muted,
                                 fontSize = 11.sp,
                             )
                             StickerBox(
                                 modifier = Modifier.fillMaxWidth(0.8f),
-                                fill = if (isMine) Coral else Rose,
+                                fill = if (isMine) SociableTheme.accent else SociableTheme.chip,
                                 radius = 18.dp,
                                 shadow = 0.dp,
                                 contentPadding = PaddingValues(12.dp),
                             ) {
                                 Text(
                                     text = message.text,
-                                    color = if (isMine) SCream else SInk,
+                                    color = if (isMine) SociableTheme.onAccent else SociableTheme.ink,
                                     fontSize = 14.sp,
                                 )
                             }
                             Text(
                                 text = ManausTime.time(message.sentAt),
-                                color = Plum,
+                                color = SociableTheme.muted,
                                 fontSize = 10.sp,
                             )
                         }

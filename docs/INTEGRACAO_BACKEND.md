@@ -123,6 +123,9 @@ Para busca textual e "perto de mim", usar respectivamente Algolia/Typesense e ge
 
 ## Regras de segurança (ponto de partida)
 
+> As regras em vigor estão em `firestore.rules` na raiz do projeto; o bloco abaixo é a referência
+> inicial que originou aquelas regras.
+
 ```js
 match /users/{userId} {
   allow read: if request.auth != null;
@@ -173,17 +176,37 @@ Para manter o padrão ao evoluir as telas:
    `Pin`) para manter o visual consistente.
 4. Rotas que recebem `eventId`: `event/{eventId}`, `event/{eventId}/chat`, `event/{eventId}/reviews`.
 
-O mapa ainda é ilustrativo (Canvas). `MapViewModel` entrega `markers` com categoria, preço,
-confirmados, capacidade e `isHappeningNow`; `ManausMapProjection` converte latitude/longitude em
-posições normalizadas. Para trocar pelo Google Maps Compose, substitua apenas o Canvas da
-`ui/map/MapScreen.kt` e use as coordenadas que já vêm nos markers. Eventos secretos são excluídos
-dos markers para não revelar o local.
+O mapa usa o Google Maps Compose. `MapViewModel` entrega `markers` com categoria, preço,
+confirmados, capacidade e `isHappeningNow`, e a tela consome as coordenadas reais dos eventos.
+Eventos secretos são excluídos dos markers para não revelar o local.
 
 ## Google Sign-In (pós-MVP)
 
 Sem Google Sign-In no MVP: a tela de boas-vindas oferece apenas entrar com e-mail ou criar conta.
 Para adicionar, inclua um método no `AuthRepository` (ex.: `signInWithGoogle(idToken)`) e trate o
 mesmo fluxo de criação/leitura do documento `users/{uid}`.
+
+## Notificações (bloco F1)
+
+O F1 usa **lembretes locais**, sem servidor: ao confirmar presença, o app agenda com WorkManager um
+aviso 1 h antes do início (`WorkManagerReminderScheduler` + `ReminderWorker`). Sem FCM, sem
+Blaze, funciona offline e sobrevive a reiniciar o aparelho.
+
+- `core/notifications/ReminderPolicy.kt`: regra pura de quando avisar (testada sem Android).
+- `core/notifications/ReminderScheduler.kt`: contrato; a UI/ViewModel não conhece WorkManager.
+- `data/notifications/WorkManagerReminderScheduler.kt`: um trabalho único por evento
+  (`reminder-<eventId>`); cancelar presença cancela o lembrete.
+- `data/notifications/ReminderWorker.kt`: monta a notificação no canal `event_reminders`.
+- No Android 13+ a permissão `POST_NOTIFICATIONS` é pedida na tela do evento, no momento do "Eu vou!".
+
+Limitações atuais (aceitas no MVP):
+
+- WorkManager sem alarmes exatos: em Doze, o aviso pode chegar alguns minutos atrasado.
+- O lembrete é individual e local; cancelamento de evento pelo organizador ainda não avisa ninguém.
+
+Quando o projeto tiver Firebase Blaze, o F2 (push) deve usar Cloud Functions + FCM: o mesmo
+`ReminderScheduler` continuaria, trocando apenas a implementação para registrar tokens e deixar o
+servidor disparar o envio — incluindo avisos de cancelamento e mudança de horário.
 
 ## Rodando o projeto
 
@@ -197,11 +220,12 @@ Pré-requisitos: JDK 17+ (Android Studio JBR serve), Android SDK e emulador/apar
 .\gradlew.bat testDebugUnitTest
 ```
 
-Conta de demonstração: `demo@sociable.app` / `123456`.
+Crie sua conta pelo próprio app (Welcome → Criar minha conta). As contas ficam no
+Firebase Authentication do projeto.
 
-## Implementação atual: Authentication e perfil
+## Implementação atual: Authentication, perfil, eventos e RSVP
 
-Os contratos `AuthRepository` e `UserRepository` já possuem implementações Firebase:
+Já usam Firebase:
 
 - `data/firebase/FirebaseAuthRepository.kt`: cadastro, login, logout, recuperação de senha e
   observação do usuário autenticado. O cadastro cria `users/{uid}` após criar a conta no Auth.
@@ -209,20 +233,53 @@ Os contratos `AuthRepository` e `UserRepository` já possuem implementações Fi
   biografia, foto e interesses.
 - `data/firebase/FirestoreUserMapper.kt`: conversão entre `User` e documento Firestore.
 - `data/firebase/FirebaseErrorMapper.kt`: tradução de erros Firebase para `AppError`.
+- `data/firebase/FirestoreEventRepository.kt`: feed em tempo real, detalhe, criação e RSVP.
+- `data/firebase/FirestoreEventMapper.kt`: conversão de eventos e do local privado do segredinho.
 
-O Koin já injeta essas duas implementações reais. Eventos, chat e avaliações continuam usando
-os repositórios fake; a troca deles será feita em etapas separadas.
+O Koin já injeta essas implementações. Chat e avaliações continuam nos repositórios fake até a
+próxima etapa.
+
+### Eventos no Firestore
+
+- A consulta do feed busca `status == ACTIVE` e `endAt >= agora`, ordenada por `endAt`, com limite
+  de 200 documentos. Texto, categoria, data e "só grátis/só segredinhos" são filtrados em memória;
+  paginação, busca full-text (Algolia/Typesense) e geohash ficam para depois.
+- `setRsvp` roda em transação: valida capacidade, cria/remove `rsvps/{uid}` e atualiza `goingCount`.
+- Segredinhos gravam o local real em `events/{eventId}/private/location`. O documento público fica
+  com "Local secreto" e coordenadas neutras; o repositório só mescla o local real para o
+  organizador ou para quem tem RSVP.
+- Eventos cancelados (`status = CANCELLED`) continuam acessíveis pelo detalhe, mas não entram no
+  feed nem no mapa.
+
+### Publicando regras e índices
+
+O projeto inclui `firebase.json`, `firestore.indexes.json` e `.firebaserc`. Com o Firebase CLI:
+
+```powershell
+npm install -g firebase-tools
+firebase login
+firebase deploy --only firestore:rules,firestore:indexes
+```
+
+Sem o CLI, cole `firestore.rules` em **Firestore Database → Regras** e crie o índice composto
+`events`: `status ASC, endAt ASC` em **Índices**. O console também mostra um link direto para criar
+o índice quando a primeira consulta falhar por falta dele.
+
+> Ao trocar os fakes pelo Firestore, o feed começa vazio. Crie alguns eventos pelo próprio app para
+> popular o banco; a conta `demo@sociable.app` existia apenas no banco em memória.
 
 ### Dependência de coroutines
 
 O projeto usa `kotlinx-coroutines-play-services` para aguardar Tasks do Firebase com `await()`.
 
-### Regras iniciais do Firestore
+### Regras do Firestore
 
-O arquivo `firestore.rules` na raiz contém regras iniciais para a coleção `users`. Publique-as no
-Firebase Console em **Firestore Database → Regras**. Usuários autenticados conseguem ler perfis,
-mas somente o dono do UID pode criar, alterar ou excluir o próprio documento. Antes de publicar
-em produção, revise a política de leitura de perfis conforme as necessidades de privacidade do app.
+O arquivo `firestore.rules` na raiz cobre `users`, `events`, `rsvps` e o local privado dos
+segredinhos. Usuários autenticados leem eventos e perfis; cada pessoa só altera o próprio perfil,
+o próprio RSVP e os eventos que organiza. O `goingCount` só pode mudar junto com o RSVP
+correspondente, e a criação de RSVP exige que a mesma transação tenha incrementado o contador.
+Antes de produção, revise a leitura de perfis (o campo `email` ainda é visível para qualquer
+usuário autenticado).
 
 ### Documento `users/{uid}`
 

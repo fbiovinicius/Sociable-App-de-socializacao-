@@ -1,7 +1,6 @@
 package com.example.sociable.ui.auth
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,7 +20,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -36,9 +34,8 @@ import com.example.sociable.ui.common.ScreenTitle
 import com.example.sociable.ui.common.SociableButton
 import com.example.sociable.ui.common.SociableTextField
 import com.example.sociable.ui.common.message
-import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.SCream
-import com.example.sociable.ui.theme.SInk
+import com.example.sociable.ui.common.SociableTextLink
+import com.example.sociable.ui.theme.SociableTheme
 
 private val EmailKeyboard = KeyboardOptions(
     keyboardType = KeyboardType.Email,
@@ -62,7 +59,7 @@ fun LoginScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SCream)
+            .background(SociableTheme.background)
             .systemBarsPadding()
             .navigationBarsPadding()
             .imePadding()
@@ -98,29 +95,21 @@ fun LoginScreen(
             },
             supportingText = state.passwordError?.message() ?: "Mínimo de 6 caracteres",
         )
-        Text(
+        SociableTextLink(
             text = if (showPassword) "Ocultar senha" else "Mostrar senha",
-            color = Plum,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .clickable { showPassword = !showPassword }
-                .padding(vertical = 8.dp),
+            onClick = { showPassword = !showPassword },
         )
-        Text(
+        SociableTextLink(
             text = "Esqueci minha senha",
-            color = SInk,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .clickable(enabled = !state.isLoading, onClick = viewModel::onForgotPasswordClick)
-                .padding(vertical = 6.dp),
+            onClick = viewModel::onForgotPasswordClick,
+            color = SociableTheme.ink,
+            enabled = !state.isLoading,
         )
 
         if (state.resetEmailSent) {
             Text(
                 text = "Enviamos um link de recuperação para o seu e-mail.",
-                color = SInk,
+                color = SociableTheme.ink,
                 fontSize = 13.sp,
                 modifier = Modifier.padding(top = 4.dp),
             )
@@ -139,12 +128,6 @@ fun LoginScreen(
             text = "Criar conta",
             onClick = onCreateAccount,
             secondary = true,
-        )
-        Text(
-            text = "Conta de demonstração: demo@sociable.app / 123456",
-            color = Plum,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(top = 24.dp),
         )
     }
 }

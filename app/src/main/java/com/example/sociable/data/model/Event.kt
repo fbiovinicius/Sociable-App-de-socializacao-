@@ -33,6 +33,8 @@ data class Event(
      * O backend deve ocultar `venueName`/`address` de quem não tem RSVP.
      */
     val isSecret: Boolean = false,
+    /** Cancelado some do feed/mapa, mas continua acessível por quem já conhecia o evento. */
+    val status: EventStatus = EventStatus.ACTIVE,
 ) {
     fun isHappeningAt(now: Instant): Boolean =
         !now.isBefore(startAt) && !now.isAfter(endAt)

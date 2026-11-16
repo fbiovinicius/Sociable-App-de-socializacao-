@@ -24,10 +24,7 @@ import com.example.sociable.ui.common.formatEventDay
 import com.example.sociable.ui.common.formatPriceText
 import com.example.sociable.ui.common.formatSpots
 import com.example.sociable.ui.common.pinRes
-import com.example.sociable.ui.theme.OrangeSoft
-import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.SCream
-import com.example.sociable.ui.theme.SInk
+import com.example.sociable.ui.theme.SociableTheme
 
 @Composable
 fun EventCard(
@@ -37,7 +34,7 @@ fun EventCard(
 ) {
     StickerBox(
         modifier = modifier.fillMaxWidth(),
-        fill = if (event.isSecret) OrangeSoft else SCream,
+        fill = if (event.isSecret) SociableTheme.accentSoft else SociableTheme.background,
         radius = 22.dp,
         contentPadding = PaddingValues(16.dp),
         onClick = onClick,
@@ -49,19 +46,19 @@ fun EventCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (event.isSecret) "🔒 Segredinho" else event.category.label,
-                        color = Plum,
+                        color = SociableTheme.muted,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = "${formatEventDay(event.startAt)} · ${ManausTime.time(event.startAt)}",
-                        color = Plum,
+                        color = SociableTheme.muted,
                         fontSize = 12.sp,
                     )
                 }
                 Text(
                     text = formatPriceText(event.isFree, event.price),
-                    color = SInk,
+                    color = SociableTheme.ink,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                 )
@@ -69,7 +66,7 @@ fun EventCard(
 
             Text(
                 text = event.title,
-                color = SInk,
+                color = SociableTheme.ink,
                 fontSize = 19.sp,
                 fontWeight = FontWeight.ExtraBold,
                 maxLines = 2,
@@ -78,11 +75,11 @@ fun EventCard(
             )
             Text(
                 text = if (event.isSecret) {
-                    "📍 Local revelado 2 h antes para quem confirmar"
+                    "📍 Local revelado para quem confirmar presença"
                 } else {
                     "📍 ${event.venueName} · ${event.address}"
                 },
-                color = SInk,
+                color = SociableTheme.ink,
                 fontSize = 13.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -98,12 +95,12 @@ fun EventCard(
             ) {
                 Text(
                     text = "👥 ${formatSpots(event.goingCount, event.capacity)}",
-                    color = SInk,
+                    color = SociableTheme.ink,
                     fontSize = 13.sp,
                 )
                 Text(
                     text = "Ver detalhes →",
-                    color = SInk,
+                    color = SociableTheme.ink,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                 )

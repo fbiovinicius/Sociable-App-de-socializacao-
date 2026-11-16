@@ -1,10 +1,11 @@
 package com.example.sociable.di
 
+import com.example.sociable.core.notifications.ReminderScheduler
 import com.example.sociable.core.time.SystemTimeProvider
+import org.koin.android.ext.koin.androidContext
 import com.example.sociable.core.time.TimeProvider
 import com.example.sociable.data.fake.FakeChatRepository
 import com.example.sociable.data.fake.FakeDatabase
-import com.example.sociable.data.fake.FakeEventRepository
 import com.example.sociable.data.fake.FakeReviewRepository
 import com.example.sociable.data.repository.AuthRepository
 import com.example.sociable.data.repository.ChatRepository
@@ -12,7 +13,9 @@ import com.example.sociable.data.repository.EventRepository
 import com.example.sociable.data.repository.ReviewRepository
 import com.example.sociable.data.repository.UserRepository
 import com.example.sociable.data.firebase.FirebaseAuthRepository
+import com.example.sociable.data.firebase.FirestoreEventRepository
 import com.example.sociable.data.firebase.FirestoreUserRepository
+import com.example.sociable.data.notifications.WorkManagerReminderScheduler
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.example.sociable.feature.auth.LoginViewModel
@@ -32,15 +35,15 @@ import org.koin.dsl.module
  * Grafo de dependências.
  *
  * >>> PONTO DE TROCA PARA O BACKEND <<<
- * Auth e perfil já usam Firebase. Os demais domínios permanecem em memória
- * até suas implementações Firestore serem concluídas.
+ * Auth, perfil, eventos e presença já usam Firebase. Chat e avaliações
+ * permanecem em memória até suas implementações Firestore serem concluídas.
  * Nenhum ViewModel ou tela precisa mudar.
  */
 val appModule = module {
 
     single<TimeProvider> { SystemTimeProvider }
 
-    // Banco em memória mantido temporariamente para eventos, chat e avaliações.
+    // Banco em memória mantido temporariamente para chat e avaliações.
     single { FakeDatabase(get()) }
 
     // Implementações reais: autenticação e perfil persistidos no Firebase.
@@ -49,14 +52,17 @@ val appModule = module {
     single<AuthRepository> { FirebaseAuthRepository(get(), get(), get()) }
     single<UserRepository> { FirestoreUserRepository(get(), get()) }
 
-    // FAKE -> trocar por FirestoreEventRepository
-    single<EventRepository> { FakeEventRepository(get(), get()) }
+    // Eventos e presença já persistidos no Cloud Firestore.
+    single<EventRepository> { FirestoreEventRepository(get(), get(), get()) }
 
     // FAKE -> trocar por FirestoreChatRepository
     single<ChatRepository> { FakeChatRepository(get(), get()) }
 
     // FAKE -> trocar por FirestoreReviewRepository
     single<ReviewRepository> { FakeReviewRepository(get(), get()) }
+
+    // Lembretes locais (bloco F1).
+    single<ReminderScheduler> { WorkManagerReminderScheduler(androidContext()) }
 
     viewModelOf(::LoginViewModel)
     viewModelOf(::RegisterViewModel)
@@ -88,6 +94,7 @@ val appModule = module {
             eventRepository = get(),
             reviewRepository = get(),
             authRepository = get(),
+            reminderScheduler = get(),
         )
     }
 }

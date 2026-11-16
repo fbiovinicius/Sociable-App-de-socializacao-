@@ -19,9 +19,7 @@ import androidx.compose.ui.unit.sp
 import com.example.sociable.ui.common.SociableButton
 import com.example.sociable.ui.common.SociableChip
 import com.example.sociable.ui.common.SociableLogo
-import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.SCream
-import com.example.sociable.ui.theme.SInk
+import com.example.sociable.ui.theme.SociableTheme
 
 @Composable
 fun WelcomeScreen(
@@ -31,7 +29,7 @@ fun WelcomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SCream)
+            .background(SociableTheme.background)
             .systemBarsPadding()
             .padding(24.dp),
     ) {
@@ -46,7 +44,7 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = "Descubra o que está rolando em Manaus\ne vá com gente nova, sem compromisso",
-                color = SInk,
+                color = SociableTheme.ink,
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center,
             )
@@ -67,7 +65,7 @@ fun WelcomeScreen(
         )
         Text(
             text = "Só para maiores de 18 anos.",
-            color = Plum,
+            color = SociableTheme.muted,
             fontSize = 12.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier
