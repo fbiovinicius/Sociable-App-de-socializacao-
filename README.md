@@ -42,7 +42,7 @@ Saber o que está acontecendo na cidade ainda é difícil:
 - Criação de evento com local, coordenadas, período, valor e limite de pessoas.
 
 **Mapa**
-- Mapa ilustrativo de Manaus desenhado em Canvas, com pinos por categoria.
+- Mapa interativo com Google Maps Compose e pinos por categoria.
 - Busca e atalhos *Agora*, *Gratuitos*, *Música*, *Gastronomia*, *Esporte* e *Cultura*.
 - Zoom, arraste e card do evento selecionado com acesso ao detalhe.
 - Eventos "Segredinhos" ficam fora do mapa para não revelar o local.
@@ -54,6 +54,8 @@ Saber o que está acontecendo na cidade ainda é difícil:
 **Evento**
 - Detalhe com descrição, local, horário, preço, vagas e avaliações.
 - Confirmar/cancelar presença ("Eu vou!"); o local secreto só aparece para quem confirmou.
+- **Lembrete local**: ao confirmar presença, o app agenda um aviso 1 h antes do rolê
+  (WorkManager + notificação local; funciona offline e sobrevive a reiniciar o aparelho).
 - Chat por evento e avaliações com estrelas.
 
 **Perfil**
@@ -71,14 +73,17 @@ MVP com lógica MVVM e UI em Compose integradas:
 - [x] Confirmação de presença ("Eu vou!")
 - [x] Edição de perfil e interesses
 - [x] Chat e avaliações dos eventos
-- [x] Mapa ilustrativo com eventos geolocalizados
+- [x] Mapa com Google Maps e eventos geolocalizados
 - [x] Aba de segredinhos e local oculto para quem não confirmou
-- [ ] Firebase (Auth + Firestore)
-- [ ] Google Maps
+- [x] Firebase Authentication e Firestore (perfil, eventos e presença)
+- [x] Google Maps
+- [x] Lembretes locais (WorkManager)
+- [x] Tema claro/escuro com seletor no perfil (sistema, claro ou escuro)
+- [ ] Chat e avaliações persistidos no Firestore
 - [ ] Google Sign-In
 
-O backend está simulado em memória (Koin) para o app rodar sem Firebase. O guia para os
-parceiros conectarem o Firebase está em
+A autenticação, o perfil, os eventos e o RSVP já usam Firebase. Chat e avaliações
+continuam em memória até a próxima etapa. O guia de backend está em
 [docs/INTEGRACAO_BACKEND.md](docs/INTEGRACAO_BACKEND.md).
 
 ### Rodando
@@ -88,7 +93,8 @@ parceiros conectarem o Firebase está em
 .\gradlew.bat testDebugUnitTest
 ```
 
-Conta de demonstração: `demo@sociable.app` / `123456`.
+Crie sua conta pelo próprio app (Welcome → Criar minha conta). As contas ficam no
+Firebase Authentication do projeto.
 
 ### Google Maps
 

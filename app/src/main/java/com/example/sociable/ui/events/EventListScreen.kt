@@ -24,7 +24,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -36,11 +35,7 @@ import com.example.sociable.feature.events.EventListViewModel
 import com.example.sociable.ui.common.EmptyState
 import com.example.sociable.ui.common.ErrorText
 import com.example.sociable.ui.common.SociableChip
-import com.example.sociable.ui.theme.Coral
-import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.SCream
-import com.example.sociable.ui.theme.SInk
-import com.example.sociable.ui.theme.SSand
+import com.example.sociable.ui.theme.SociableTheme
 
 @Composable
 fun EventListScreen(
@@ -53,7 +48,7 @@ fun EventListScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SCream)
+            .background(SociableTheme.background)
             .statusBarsPadding(),
     ) {
         Row(
@@ -65,13 +60,13 @@ fun EventListScreen(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Descobrir",
-                    color = SInk,
+                    color = SociableTheme.ink,
                     fontSize = 30.sp,
                     fontWeight = FontWeight.ExtraBold,
                 )
                 Text(
                     text = "O que tá rolando em Manaus?",
-                    color = Plum,
+                    color = SociableTheme.muted,
                     fontSize = 14.sp,
                 )
             }
@@ -93,11 +88,11 @@ fun EventListScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = SInk,
-                unfocusedBorderColor = SSand,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                cursorColor = Coral,
+                focusedBorderColor = SociableTheme.ink,
+                unfocusedBorderColor = SociableTheme.outlineSoft,
+                focusedContainerColor = SociableTheme.surface,
+                unfocusedContainerColor = SociableTheme.surface,
+                cursorColor = SociableTheme.accent,
             ),
         )
 
@@ -147,7 +142,7 @@ fun EventListScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator(color = SInk)
+                    CircularProgressIndicator(color = SociableTheme.ink)
                 }
             }
 

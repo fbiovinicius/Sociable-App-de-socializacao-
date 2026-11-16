@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -33,11 +34,12 @@ import com.example.sociable.ui.common.ErrorText
 import com.example.sociable.ui.common.FormTextField
 import com.example.sociable.ui.common.Pin
 import com.example.sociable.ui.common.ScreenTitle
+import com.example.sociable.ui.common.SectionTitle
 import com.example.sociable.ui.common.SociableButton
 import com.example.sociable.ui.common.SociableChip
-import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.SCream
-import com.example.sociable.ui.theme.SInk
+import com.example.sociable.ui.theme.SociableTheme
+import com.example.sociable.ui.theme.ThemeController
+import com.example.sociable.ui.theme.ThemeMode
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -46,6 +48,7 @@ fun ProfileScreen(
     onSignedOut: () -> Unit,
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
+    val context = LocalContext.current
 
     LaunchedEffect(state.isSignedOut) {
         if (state.isSignedOut) onSignedOut()
@@ -55,10 +58,10 @@ fun ProfileScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(SCream),
+                .background(SociableTheme.background),
             contentAlignment = Alignment.Center,
         ) {
-            CircularProgressIndicator(color = SInk)
+            CircularProgressIndicator(color = SociableTheme.ink)
         }
         return
     }
@@ -66,7 +69,7 @@ fun ProfileScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SCream)
+            .background(SociableTheme.background)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(start = 24.dp, end = 28.dp, bottom = 24.dp),
@@ -77,14 +80,14 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = state.name.ifBlank { "Meu perfil" },
-            color = SInk,
+            color = SociableTheme.ink,
             fontSize = 26.sp,
             fontWeight = FontWeight.ExtraBold,
             textAlign = TextAlign.Center,
         )
         Text(
             text = state.email,
-            color = Plum,
+            color = SociableTheme.muted,
             fontSize = 13.sp,
         )
 
@@ -116,9 +119,33 @@ fun ProfileScreen(
         )
 
         Spacer(modifier = Modifier.height(24.dp))
+        SectionTitle("Aparência")
+        Text(
+            text = "Claro, escuro ou como o seu celular. Muda na hora, sem fechar o app.",
+            color = SociableTheme.muted,
+            fontSize = 13.sp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 2.dp, bottom = 10.dp),
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ThemeMode.entries.forEach { option ->
+                SociableChip(
+                    text = option.label,
+                    selected = ThemeController.mode == option,
+                    onClick = { ThemeController.setMode(option, context) },
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = "Meus interesses",
-            color = SInk,
+            color = SociableTheme.ink,
             fontWeight = FontWeight.Bold,
             modifier = Modifier
                 .fillMaxWidth()
@@ -126,7 +153,7 @@ fun ProfileScreen(
         )
         Text(
             text = "Usamos isso para sugerir rolês com a sua cara.",
-            color = Plum,
+            color = SociableTheme.muted,
             fontSize = 13.sp,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -149,7 +176,7 @@ fun ProfileScreen(
         if (state.isSaved) {
             Text(
                 text = "Perfil atualizado com sucesso!",
-                color = SInk,
+                color = SociableTheme.ink,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 10.dp),

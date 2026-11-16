@@ -1,7 +1,6 @@
 package com.example.sociable.ui.auth
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -19,7 +18,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -32,10 +30,8 @@ import com.example.sociable.ui.common.FormTextField
 import com.example.sociable.ui.common.ScreenTitle
 import com.example.sociable.ui.common.SociableButton
 import com.example.sociable.ui.common.StickerBox
-import com.example.sociable.ui.theme.OrangeSoft
-import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.SCream
-import com.example.sociable.ui.theme.SInk
+import com.example.sociable.ui.common.SociableTextLink
+import com.example.sociable.ui.theme.SociableTheme
 
 @Composable
 fun RegisterScreen(
@@ -53,7 +49,7 @@ fun RegisterScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SCream)
+            .background(SociableTheme.background)
             .systemBarsPadding()
             .navigationBarsPadding()
             .imePadding()
@@ -66,13 +62,13 @@ fun RegisterScreen(
 
         StickerBox(
             modifier = Modifier.fillMaxWidth(),
-            fill = OrangeSoft,
+            fill = SociableTheme.accentSoft,
             radius = 14.dp,
             contentPadding = PaddingValues(14.dp),
         ) {
             Text(
                 text = "✦ O Sociable é só para maiores de 18 anos.",
-                color = SInk,
+                color = SociableTheme.ink,
                 fontSize = 13.sp,
             )
         }
@@ -119,15 +115,10 @@ fun RegisterScreen(
             onClick = viewModel::onRegisterClick,
             isLoading = state.isLoading,
         )
-        Text(
+        SociableTextLink(
             text = "Já tenho conta",
-            color = Plum,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onLoginClick)
-                .padding(top = 18.dp),
+            onClick = onLoginClick,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }

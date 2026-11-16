@@ -35,12 +35,7 @@ import com.example.sociable.ui.common.SociableButton
 import com.example.sociable.ui.common.StickerBox
 import com.example.sociable.ui.common.formatAverage
 import com.example.sociable.ui.common.message
-import com.example.sociable.ui.theme.Coral
-import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.Rose
-import com.example.sociable.ui.theme.SCream
-import com.example.sociable.ui.theme.SInk
-import com.example.sociable.ui.theme.Star
+import com.example.sociable.ui.theme.SociableTheme
 
 @Composable
 fun ReviewScreen(
@@ -52,7 +47,7 @@ fun ReviewScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SCream)
+            .background(SociableTheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
@@ -69,28 +64,28 @@ fun ReviewScreen(
                     .padding(top = 40.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator(color = SInk)
+                CircularProgressIndicator(color = SociableTheme.ink)
             }
             return@Column
         }
 
         StickerBox(
             modifier = Modifier.fillMaxWidth(),
-            fill = Rose,
+            fill = SociableTheme.chip,
             radius = 18.dp,
             contentPadding = PaddingValues(14.dp),
         ) {
             if (state.rating.hasReviews) {
                 Text(
                     text = "★ ${formatAverage(state.rating.average)} · ${state.rating.count} avaliações",
-                    color = SInk,
+                    color = SociableTheme.ink,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                 )
             } else {
                 Text(
                     text = "Este evento ainda não tem avaliações.",
-                    color = Plum,
+                    color = SociableTheme.muted,
                     fontSize = 14.sp,
                 )
             }
@@ -101,14 +96,14 @@ fun ReviewScreen(
         if (state.hasReviewed) {
             Text(
                 text = "Você já avaliou este evento. Obrigado pelo feedback!",
-                color = SInk,
+                color = SociableTheme.ink,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
             )
         } else {
             Text(
                 text = "Deixe sua avaliação",
-                color = SInk,
+                color = SociableTheme.ink,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(6.dp))
@@ -117,7 +112,7 @@ fun ReviewScreen(
                     Text(
                         text = "★",
                         fontSize = 34.sp,
-                        color = if (star <= state.selectedRating) Star else Plum.copy(alpha = 0.35f),
+                        color = if (star <= state.selectedRating) SociableTheme.star else SociableTheme.muted.copy(alpha = 0.35f),
                         modifier = Modifier
                             .clickable { viewModel.onRatingChange(star) }
                             .padding(horizontal = 3.dp),
@@ -128,7 +123,7 @@ fun ReviewScreen(
             if (ratingError != null) {
                 Text(
                     text = ratingError.message(),
-                    color = Coral,
+                    color = SociableTheme.accent,
                     fontSize = 12.sp,
                 )
             }
@@ -147,7 +142,7 @@ fun ReviewScreen(
             if (state.isSubmitted) {
                 Text(
                     text = "Avaliação enviada!",
-                    color = SInk,
+                    color = SociableTheme.ink,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 8.dp),
@@ -166,7 +161,7 @@ fun ReviewScreen(
             Spacer(modifier = Modifier.height(28.dp))
             Text(
                 text = "O que as pessoas acharam",
-                color = SInk,
+                color = SociableTheme.ink,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(10.dp))
@@ -174,7 +169,7 @@ fun ReviewScreen(
                 state.reviews.forEach { review ->
                     StickerBox(
                         modifier = Modifier.fillMaxWidth(),
-                        fill = SCream,
+                        fill = SociableTheme.surface,
                         radius = 18.dp,
                         contentPadding = PaddingValues(14.dp),
                     ) {
@@ -185,27 +180,27 @@ fun ReviewScreen(
                             ) {
                                 Text(
                                     text = review.authorName,
-                                    color = SInk,
+                                    color = SociableTheme.ink,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                 )
                                 Text(
                                     text = "★".repeat(review.rating),
-                                    color = Star,
+                                    color = SociableTheme.star,
                                     fontSize = 14.sp,
                                 )
                             }
                             if (review.comment.isNotBlank()) {
                                 Text(
                                     text = review.comment,
-                                    color = SInk,
+                                    color = SociableTheme.ink,
                                     fontSize = 13.sp,
                                     modifier = Modifier.padding(top = 4.dp),
                                 )
                             }
                             Text(
                                 text = ManausTime.date(review.createdAt),
-                                color = Plum,
+                                color = SociableTheme.muted,
                                 fontSize = 11.sp,
                                 modifier = Modifier.padding(top = 4.dp),
                             )

@@ -21,13 +21,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.sociable.core.time.ManausTime
 import com.example.sociable.feature.events.EventDetailViewModel
 import com.example.sociable.ui.common.BackLink
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import com.example.sociable.ui.common.EmptyState
 import com.example.sociable.ui.common.ErrorText
 import com.example.sociable.ui.common.Pin
@@ -39,11 +46,7 @@ import com.example.sociable.ui.common.formatEventDay
 import com.example.sociable.ui.common.formatPriceText
 import com.example.sociable.ui.common.formatSpots
 import com.example.sociable.ui.common.pinRes
-import com.example.sociable.ui.theme.OrangeSoft
-import com.example.sociable.ui.theme.Plum
-import com.example.sociable.ui.theme.Rose
-import com.example.sociable.ui.theme.SCream
-import com.example.sociable.ui.theme.SInk
+import com.example.sociable.ui.theme.SociableTheme
 
 @Composable
 fun EventDetailScreen(
@@ -55,10 +58,28 @@ fun EventDetailScreen(
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
     val event = state.event
 
+    // Lembrete local (bloco F1): no Android 13+ a notificação depende de
+    // permissão em runtime; pedimos no momento em que a pessoa confirma presença.
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
+    fun ensureNotificationPermission() {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SCream)
+            .background(SociableTheme.background)
             .statusBarsPadding()
             .navigationBarsPadding(),
     ) {
@@ -68,7 +89,7 @@ fun EventDetailScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator(color = SInk)
+                    CircularProgressIndicator(color = SociableTheme.ink)
                 }
             }
 
@@ -101,7 +122,7 @@ fun EventDetailScreen(
                             )
                             Text(
                                 text = "por ${event.organizerName}",
-                                color = Plum,
+                                color = SociableTheme.muted,
                                 fontSize = 12.sp,
                             )
                         }
@@ -110,7 +131,7 @@ fun EventDetailScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = event.title,
-                        color = SInk,
+                        color = SociableTheme.ink,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.ExtraBold,
                     )
@@ -121,46 +142,46 @@ fun EventDetailScreen(
                         } else {
                             "Sem avaliações ainda"
                         },
-                        color = Plum,
+                        color = SociableTheme.muted,
                         fontSize = 13.sp,
                         modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
                     )
 
                     StickerBox(
                         modifier = Modifier.fillMaxWidth(),
-                        fill = Rose,
+                        fill = SociableTheme.chip,
                         radius = 20.dp,
                         contentPadding = PaddingValues(16.dp),
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
                                 text = "📅 ${formatEventDay(event.startAt)} · ${ManausTime.time(event.startAt)} até ${ManausTime.time(event.endAt)}",
-                                color = SInk,
+                                color = SociableTheme.ink,
                                 fontSize = 14.sp,
                             )
                             Text(
                                 text = if (event.isSecret && !state.rsvp.isGoing) {
-                                    "📍 Local revelado 2 h antes, só para convidados"
+                                    "📍 Local revelado para quem confirmar presença"
                                 } else {
                                     "📍 ${event.venueName} · ${event.address}"
                                 },
-                                color = SInk,
+                                color = SociableTheme.ink,
                                 fontSize = 14.sp,
                             )
                             Text(
                                 text = "💰 ${formatPriceText(event.isFree, event.price)}",
-                                color = SInk,
+                                color = SociableTheme.ink,
                                 fontSize = 14.sp,
                             )
                             Text(
                                 text = "👥 ${formatSpots(state.rsvp.goingCount, event.capacity)}",
-                                color = SInk,
+                                color = SociableTheme.ink,
                                 fontSize = 14.sp,
                             )
                             if (!event.isSecret || state.rsvp.isGoing) {
                                 Text(
                                     text = "🧭 Lat ${event.latitude} · Lon ${event.longitude}",
-                                    color = Plum,
+                                    color = SociableTheme.muted,
                                     fontSize = 12.sp,
                                 )
                             }
@@ -170,13 +191,13 @@ fun EventDetailScreen(
                     Spacer(modifier = Modifier.height(20.dp))
                     Text(
                         text = "Sobre o rolê",
-                        color = SInk,
+                        color = SociableTheme.ink,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = event.description,
-                        color = SInk,
+                        color = SociableTheme.ink,
                         fontSize = 14.sp,
                     )
 
@@ -184,13 +205,13 @@ fun EventDetailScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         StickerBox(
                             modifier = Modifier.fillMaxWidth(),
-                            fill = OrangeSoft,
+                            fill = SociableTheme.accentSoft,
                             radius = 14.dp,
                             contentPadding = PaddingValues(14.dp),
                         ) {
                             Text(
-                                text = "🔒 O endereço completo é revelado 2 h antes, só para quem tem convite.",
-                                color = SInk,
+                                text = "🔒 O endereço completo é revelado para quem confirmar presença.",
+                                color = SociableTheme.ink,
                                 fontSize = 13.sp,
                             )
                         }
@@ -202,7 +223,7 @@ fun EventDetailScreen(
                     if (state.rsvp.isFull && !state.rsvp.isGoing) {
                         Text(
                             text = "Este evento está lotado.",
-                            color = SInk,
+                            color = SociableTheme.ink,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 8.dp),
@@ -217,7 +238,10 @@ fun EventDetailScreen(
                             state.rsvp.isGoing -> "Você vai! ✓ (toque para cancelar)"
                             else -> "Eu vou!"
                         },
-                        onClick = viewModel::onToggleRsvp,
+                        onClick = {
+                            ensureNotificationPermission()
+                            viewModel.onToggleRsvp()
+                        },
                         secondary = state.rsvp.isGoing,
                         isLoading = state.isTogglingRsvp,
                         enabled = state.rsvp.isGoing || !state.rsvp.isFull,
