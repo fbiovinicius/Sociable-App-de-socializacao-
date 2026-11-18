@@ -109,6 +109,16 @@ fun ChatScreen(
                 }
             }
 
+            !state.isAvailable -> {
+                EmptyState(
+                    title = "Chat só para quem vai",
+                    subtitle = "Confirme presença no evento para ler e mandar mensagens.",
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(top = 32.dp),
+                )
+            }
+
             state.messages.isEmpty() -> {
                 EmptyState(
                     title = "Ninguém falou nada ainda",
@@ -163,29 +173,31 @@ fun ChatScreen(
             }
         }
 
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            SociableTextField(
-                label = "Mensagem",
-                value = state.input,
-                onChange = viewModel::onInputChange,
-                modifier = Modifier.weight(1f),
-                isError = inputError != null,
-                supportingText = inputError?.message(),
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Send,
-                ),
-                keyboardActions = KeyboardActions(onSend = { viewModel.onSendClick() }),
-            )
-            SociableChip(
-                text = if (state.isSending) "…" else "Enviar",
-                selected = true,
-                onClick = { if (!state.isSending) viewModel.onSendClick() },
-            )
+        if (state.isAvailable) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SociableTextField(
+                    label = "Mensagem",
+                    value = state.input,
+                    onChange = viewModel::onInputChange,
+                    modifier = Modifier.weight(1f),
+                    isError = inputError != null,
+                    supportingText = inputError?.message(),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Send,
+                    ),
+                    keyboardActions = KeyboardActions(onSend = { viewModel.onSendClick() }),
+                )
+                SociableChip(
+                    text = if (state.isSending) "…" else "Enviar",
+                    selected = true,
+                    onClick = { if (!state.isSending) viewModel.onSendClick() },
+                )
+            }
         }
         ErrorText(
             error = state.error,

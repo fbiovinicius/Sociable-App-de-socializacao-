@@ -137,14 +137,14 @@ internal fun EventDraft.toPrivateLocationMap(): Map<String, Any?> = mapOf(
     EventFields.LONGITUDE to longitude,
 )
 
-private fun Any?.toInstantOrNull(): Instant? = when (this) {
+internal fun Any?.toInstantOrNull(): Instant? = when (this) {
     is Timestamp -> Instant.ofEpochSecond(seconds, nanoseconds.toLong())
     is Date -> toInstant()
     is Number -> Instant.ofEpochMilli(toLong())
     else -> null
 }
 
-private fun Instant.toTimestamp(): Timestamp = Timestamp(epochSecond, nano)
+internal fun Instant.toTimestamp(): Timestamp = Timestamp(epochSecond, nano)
 
 private fun String?.toCategory(): EventCategory =
     this?.let { name ->
