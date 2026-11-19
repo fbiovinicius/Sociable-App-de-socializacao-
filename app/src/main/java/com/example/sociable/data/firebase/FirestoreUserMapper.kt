@@ -1,6 +1,9 @@
 package com.example.sociable.data.firebase
 
 import com.example.sociable.data.model.Interest
+import com.example.sociable.data.model.LifeStage
+import com.example.sociable.data.model.LookingFor
+import com.example.sociable.data.model.SocialVibe
 import com.example.sociable.data.model.User
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
@@ -17,6 +20,12 @@ internal fun DocumentSnapshot.toDomainUser(): User? {
             runCatching { Interest.valueOf(name) }.getOrNull()
         } }
         .toSet()
+    val lookingForNames = get("lookingFor") as? List<*>
+    val lookingFor = lookingForNames.orEmpty()
+        .mapNotNull { value -> (value as? String)?.let { name ->
+            runCatching { LookingFor.valueOf(name) }.getOrNull()
+        } }
+        .toSet()
 
     return User(
         id = id,
@@ -25,6 +34,13 @@ internal fun DocumentSnapshot.toDomainUser(): User? {
         bio = getString("bio").orEmpty(),
         photoUrl = getString("photoUrl"),
         interests = interests,
+        lifeStage = getString("lifeStage")?.let { name ->
+            runCatching { LifeStage.valueOf(name) }.getOrNull()
+        },
+        lookingFor = lookingFor,
+        socialVibe = getString("socialVibe")?.let { name ->
+            runCatching { SocialVibe.valueOf(name) }.getOrNull()
+        },
         createdAt = createdAt,
     )
 }
@@ -35,5 +51,8 @@ internal fun User.toFirestoreMap(): Map<String, Any?> = mapOf(
     "bio" to bio,
     "photoUrl" to photoUrl,
     "interests" to interests.map { it.name },
+    "lifeStage" to lifeStage?.name,
+    "lookingFor" to lookingFor.map { it.name },
+    "socialVibe" to socialVibe?.name,
     "createdAt" to Timestamp(Date.from(createdAt)),
 )

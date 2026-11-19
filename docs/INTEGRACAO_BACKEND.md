@@ -66,6 +66,8 @@ Mapeamento sugerido de exceções:
 
 - `observeUser(userId)` → listener em `users/{userId}`.
 - `updateProfile(...)` → atualizar nome/bio/foto/interesses (e `displayName` no Auth, se mudar).
+- `updateSocialProfile(userId, lifeStage, lookingFor, socialVibe)` → gravar apenas as respostas do
+  onboarding social, preservando os demais campos do documento.
 
 ### EventRepository
 
@@ -101,7 +103,8 @@ Mapeamento sugerido de exceções:
 
 ```
 users/{userId}
-  name, email, bio, photoUrl, interests: [String], createdAt
+  name, email, bio, photoUrl, interests: [String],
+  lifeStage: String?, lookingFor: [String], socialVibe: String?, createdAt
 
 events/{eventId}
   title, description, category, venueName, address, latitude, longitude,
@@ -169,7 +172,8 @@ A UI já está integrada aos ViewModels (não é mais placeholder). Estrutura:
 - **Chat** não é uma aba global: é aberto pelo detalhe do evento (`event/{eventId}/chat`).
 - **Avaliações** também ficam no detalhe (`event/{eventId}/reviews`).
 - **Criação** aceita `?secret=true` para já nascer como segredinho.
-- **Interesses** aparecem depois do cadastro (`interests`) e podem ser editados no Perfil.
+- **Onboarding social** aparece logo após o cadastro (`onboarding`), em 3 passos; em seguida vem
+  a tela de interesses (`interests`). As respostas podem ser editadas no Perfil → "Sobre você".
 
 Para manter o padrão ao evoluir as telas:
 
@@ -285,7 +289,21 @@ correspondente, e a criação de RSVP exige que a mesma transação tenha increm
 Antes de produção, revise a leitura de perfis (o campo `email` ainda é visível para qualquer
 usuário autenticado).
 
+### Onboarding social
+
+O wizard roda uma única vez após o cadastro e grava três campos no mesmo `users/{uid}`:
+
+- `lifeStage`: nome de um valor de `LifeStage` (ex.: `NEW_IN_TOWN`) ou `null` se a etapa foi pulada.
+- `lookingFor`: array com até 3 nomes de `LookingFor` (ex.: `["NEW_FRIENDS", "NEW_HOBBIES"]`).
+- `socialVibe`: nome de um valor de `SocialVibe` ou `null` se a etapa foi pulada.
+
+"Prefiro não dizer" também é uma resposta explícita (`PREFER_NOT_TO_SAY`) nas etapas de escolha
+única. O limite de 3 é aplicado no app (`LookingForRules.MAX_CHOICES`) e deve ser repetido no
+backend se houver validação adicional. Nenhuma mudança nas regras é necessária: as regras atuais
+só exigem que `email` e `createdAt` não mudem.
+
 ### Documento `users/{uid}`
 
-Os campos persistidos são `name`, `email`, `bio`, `photoUrl`, `interests` (nomes dos valores do enum)
-e `createdAt` (Timestamp do Firestore). A senha nunca é gravada no Firestore.
+Os campos persistidos são `name`, `email`, `bio`, `photoUrl`, `interests` (nomes dos valores do enum),
+`lifeStage` (nome do enum ou `null`), `lookingFor` (nomes dos valores do enum) e `socialVibe` (nome do
+enum ou `null`), além de `createdAt` (Timestamp do Firestore). A senha nunca é gravada no Firestore.

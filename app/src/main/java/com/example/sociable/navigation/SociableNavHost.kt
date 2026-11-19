@@ -29,6 +29,7 @@ import com.example.sociable.feature.events.CreateEventViewModel
 import com.example.sociable.feature.events.EventDetailViewModel
 import com.example.sociable.feature.events.EventListViewModel
 import com.example.sociable.feature.map.MapViewModel
+import com.example.sociable.feature.onboarding.OnboardingViewModel
 import com.example.sociable.feature.profile.ProfileViewModel
 import com.example.sociable.feature.review.ReviewViewModel
 import com.example.sociable.ui.auth.InterestsScreen
@@ -40,11 +41,11 @@ import com.example.sociable.ui.events.CreateEventScreen
 import com.example.sociable.ui.events.EventDetailScreen
 import com.example.sociable.ui.events.EventListScreen
 import com.example.sociable.ui.map.MapScreen
+import com.example.sociable.ui.onboarding.OnboardingScreen
 import com.example.sociable.ui.profile.ProfileScreen
 import com.example.sociable.ui.review.ReviewScreen
 import com.example.sociable.ui.secret.SecretScreen
-import com.example.sociable.ui.theme.Rose
-import com.example.sociable.ui.theme.SCream
+import com.example.sociable.ui.theme.SociableTheme
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -66,11 +67,11 @@ fun SociableNavHost(
     val showTabs = tabs.any { it.route == currentRoute }
 
     Scaffold(
-        containerColor = SCream,
+        containerColor = SociableTheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (showTabs) {
-                NavigationBar(containerColor = SCream) {
+                NavigationBar(containerColor = SociableTheme.background) {
                     tabs.forEach { tab ->
                         NavigationBarItem(
                             selected = currentRoute == tab.route,
@@ -90,7 +91,7 @@ fun SociableNavHost(
                             },
                             label = { Text(tab.label) },
                             colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = Rose,
+                                indicatorColor = SociableTheme.chip,
                             ),
                         )
                     }
@@ -133,7 +134,7 @@ fun SociableNavHost(
                 RegisterScreen(
                     viewModel = viewModel,
                     onRegistered = {
-                        navController.navigate(Routes.INTERESTS) {
+                        navController.navigate(Routes.ONBOARDING) {
                             popUpTo(Routes.WELCOME) { inclusive = true }
                         }
                     },
@@ -144,6 +145,18 @@ fun SociableNavHost(
                         }
                     },
                     onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.ONBOARDING) {
+                val viewModel: OnboardingViewModel = koinViewModel()
+                OnboardingScreen(
+                    viewModel = viewModel,
+                    onFinished = {
+                        navController.navigate(Routes.INTERESTS) {
+                            popUpTo(Routes.ONBOARDING) { inclusive = true }
+                        }
+                    },
                 )
             }
 

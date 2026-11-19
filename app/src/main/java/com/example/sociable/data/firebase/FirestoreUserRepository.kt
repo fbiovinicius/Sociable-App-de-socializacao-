@@ -4,6 +4,9 @@ import android.net.Uri
 import com.example.sociable.core.AppError
 import com.example.sociable.core.AppResult
 import com.example.sociable.data.model.Interest
+import com.example.sociable.data.model.LifeStage
+import com.example.sociable.data.model.LookingFor
+import com.example.sociable.data.model.SocialVibe
 import com.example.sociable.data.model.User
 import com.example.sociable.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -62,6 +65,34 @@ class FirestoreUserRepository(
                 firebaseUser.updateProfile(request).await()
             }
 
+            document.set(updated.toFirestoreMap()).await()
+            AppResult.Success(updated)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            AppResult.Failure(exception.toFirebaseAppError(), exception)
+        }
+    }
+
+    override suspend fun updateSocialProfile(
+        userId: String,
+        lifeStage: LifeStage?,
+        lookingFor: Set<LookingFor>,
+        socialVibe: SocialVibe?,
+    ): AppResult<User> {
+        return try {
+            val document = firestore.collection(USERS).document(userId)
+            val snapshot = document.get().await()
+            val current = snapshot.toDomainUser()
+                ?: return AppResult.Failure(AppError.NOT_FOUND)
+
+            val updated = current.copy(
+                lifeStage = lifeStage,
+                lookingFor = lookingFor,
+                socialVibe = socialVibe,
+            )
+
+            // set() substitui o documento inteiro: o mapa inclui todos os campos.
             document.set(updated.toFirestoreMap()).await()
             AppResult.Success(updated)
         } catch (exception: CancellationException) {

@@ -7,6 +7,9 @@ import com.example.sociable.data.model.EventCategory
 import com.example.sociable.data.model.EventDraft
 import com.example.sociable.data.model.EventFilter
 import com.example.sociable.data.model.Interest
+import com.example.sociable.data.model.LifeStage
+import com.example.sociable.data.model.LookingFor
+import com.example.sociable.data.model.SocialVibe
 import java.time.Instant
 import java.time.ZonedDateTime
 import kotlinx.coroutines.flow.first
@@ -209,5 +212,41 @@ class FakeRepositoriesTest {
         assertEquals("Ana Maria", user!!.name)
         assertEquals("Nova bio", user.bio)
         assertEquals(setOf(Interest.MUSIC, Interest.OUTDOORS), user.interests)
+    }
+
+    @Test
+    fun `perfil social atualizado reflete no usuario observado`() = runTest {
+        val repository = FakeUserRepository(database())
+
+        val result = repository.updateSocialProfile(
+            userId = "user-1",
+            lifeStage = LifeStage.NEW_IN_TOWN,
+            lookingFor = setOf(LookingFor.NEW_FRIENDS, LookingFor.NEW_HOBBIES),
+            socialVibe = SocialVibe.SMALL_GROUPS,
+        )
+
+        assertTrue(result is AppResult.Success)
+        val user = repository.observeUser("user-1").first()
+        assertNotNull(user)
+        assertEquals(LifeStage.NEW_IN_TOWN, user!!.lifeStage)
+        assertEquals(
+            setOf(LookingFor.NEW_FRIENDS, LookingFor.NEW_HOBBIES),
+            user.lookingFor,
+        )
+        assertEquals(SocialVibe.SMALL_GROUPS, user.socialVibe)
+    }
+
+    @Test
+    fun `perfil social de usuario inexistente falha`() = runTest {
+        val repository = FakeUserRepository(database())
+
+        val result = repository.updateSocialProfile(
+            userId = "user-inexistente",
+            lifeStage = null,
+            lookingFor = emptySet(),
+            socialVibe = null,
+        )
+
+        assertEquals(AppError.NOT_FOUND, (result as AppResult.Failure).error)
     }
 }

@@ -29,6 +29,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.sociable.R
 import com.example.sociable.data.model.Interest
+import com.example.sociable.data.model.LifeStage
+import com.example.sociable.data.model.LookingFor
+import com.example.sociable.data.model.LookingForRules
+import com.example.sociable.data.model.SocialVibe
 import com.example.sociable.feature.profile.ProfileViewModel
 import com.example.sociable.ui.common.ErrorText
 import com.example.sociable.ui.common.FormTextField
@@ -117,6 +121,101 @@ fun ProfileScreen(
             error = state.photoUrlError,
             keyboardType = KeyboardType.Uri,
         )
+
+        Spacer(modifier = Modifier.height(24.dp))
+        SectionTitle("Sobre você")
+        Text(
+            text = "Seu momento de vida e o que você busca por aqui.",
+            color = SociableTheme.muted,
+            fontSize = 13.sp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 2.dp, bottom = 4.dp),
+        )
+
+        Text(
+            text = "Situação de vida",
+            color = SociableTheme.ink,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp, bottom = 8.dp),
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            LifeStage.entries.forEach { stage ->
+                SociableChip(
+                    text = stage.label,
+                    selected = state.lifeStage == stage,
+                    onClick = { viewModel.onLifeStageSelect(stage) },
+                )
+            }
+        }
+
+        Text(
+            text = "O que você procura · ${state.lookingFor.size} de " +
+                "${LookingForRules.MAX_CHOICES}",
+            color = SociableTheme.ink,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 14.dp, bottom = 8.dp),
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            LookingFor.entries.forEach { option ->
+                val selected = option in state.lookingFor
+                SociableChip(
+                    text = option.label,
+                    selected = selected,
+                    onClick = {
+                        if (selected || state.lookingFor.size < LookingForRules.MAX_CHOICES) {
+                            viewModel.onLookingForToggle(option)
+                        }
+                    },
+                )
+            }
+        }
+        if (state.lookingFor.size == LookingForRules.MAX_CHOICES) {
+            Text(
+                text = "Limite de ${LookingForRules.MAX_CHOICES}. " +
+                    "Toque em um escolhido para trocar.",
+                color = SociableTheme.muted,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+
+        Text(
+            text = "Vibe social",
+            color = SociableTheme.ink,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 14.dp, bottom = 8.dp),
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            SocialVibe.entries.forEach { vibe ->
+                SociableChip(
+                    text = vibe.label,
+                    selected = state.socialVibe == vibe,
+                    onClick = { viewModel.onSocialVibeSelect(vibe) },
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
         SectionTitle("Aparência")

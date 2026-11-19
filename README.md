@@ -59,8 +59,14 @@ Saber o que está acontecendo na cidade ainda é difícil:
 - Chat por evento e avaliações com estrelas.
 
 **Perfil**
-- Edição de nome, bio, foto e interesses.
+- Edição de nome, bio, foto, interesses e perfil social (situação de vida, o que procura e vibe).
 - Logout da conta.
+
+**Onboarding social**
+- Logo após o cadastro, um wizard de 3 passos pergunta a situação de vida, o que a pessoa procura
+  (até 3 opções) e a sua vibe social.
+- Cada etapa pode ser pulada ("Prefiro não dizer" também é uma resposta válida) e tudo é
+  editável depois no Perfil, na seção "Sobre você".
 
 **Navegação:** Descobrir • Mapa • Segredinhos • Perfil. Chat e avaliações são abertos pelo detalhe do evento.
 
@@ -72,6 +78,7 @@ MVP com lógica MVVM e UI em Compose integradas:
 - [x] Listagem, criação e filtros de eventos
 - [x] Confirmação de presença ("Eu vou!")
 - [x] Edição de perfil e interesses
+- [x] Onboarding social no cadastro (situação de vida, o que procura e vibe social)
 - [x] Chat e avaliações dos eventos
 - [x] Mapa com Google Maps e eventos geolocalizados
 - [x] Aba de segredinhos e local oculto para quem não confirmou

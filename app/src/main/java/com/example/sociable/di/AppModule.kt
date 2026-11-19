@@ -24,6 +24,7 @@ import com.example.sociable.feature.events.CreateEventViewModel
 import com.example.sociable.feature.events.EventDetailViewModel
 import com.example.sociable.feature.events.EventListViewModel
 import com.example.sociable.feature.map.MapViewModel
+import com.example.sociable.feature.onboarding.OnboardingViewModel
 import com.example.sociable.feature.profile.ProfileViewModel
 import com.example.sociable.feature.review.ReviewViewModel
 import org.koin.core.module.dsl.viewModel
@@ -59,6 +60,7 @@ val appModule = module {
 
     viewModelOf(::LoginViewModel)
     viewModelOf(::RegisterViewModel)
+    viewModelOf(::OnboardingViewModel)
     viewModelOf(::EventListViewModel)
     viewModelOf(::CreateEventViewModel)
     viewModelOf(::ProfileViewModel)
