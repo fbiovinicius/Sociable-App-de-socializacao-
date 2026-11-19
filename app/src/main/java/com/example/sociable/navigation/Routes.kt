@@ -5,6 +5,7 @@ object Routes {
     const val WELCOME = "welcome"
     const val LOGIN = "login"
     const val REGISTER = "register"
+    const val ONBOARDING = "onboarding"
     const val INTERESTS = "interests"
     const val EVENTS = "events"
     const val SECRET = "secret"
