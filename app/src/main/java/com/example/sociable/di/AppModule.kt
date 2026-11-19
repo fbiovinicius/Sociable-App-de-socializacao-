@@ -4,16 +4,15 @@ import com.example.sociable.core.notifications.ReminderScheduler
 import com.example.sociable.core.time.SystemTimeProvider
 import org.koin.android.ext.koin.androidContext
 import com.example.sociable.core.time.TimeProvider
-import com.example.sociable.data.fake.FakeChatRepository
-import com.example.sociable.data.fake.FakeDatabase
-import com.example.sociable.data.fake.FakeReviewRepository
 import com.example.sociable.data.repository.AuthRepository
 import com.example.sociable.data.repository.ChatRepository
 import com.example.sociable.data.repository.EventRepository
 import com.example.sociable.data.repository.ReviewRepository
 import com.example.sociable.data.repository.UserRepository
 import com.example.sociable.data.firebase.FirebaseAuthRepository
+import com.example.sociable.data.firebase.FirestoreChatRepository
 import com.example.sociable.data.firebase.FirestoreEventRepository
+import com.example.sociable.data.firebase.FirestoreReviewRepository
 import com.example.sociable.data.firebase.FirestoreUserRepository
 import com.example.sociable.data.notifications.WorkManagerReminderScheduler
 import com.google.firebase.auth.FirebaseAuth
@@ -36,16 +35,12 @@ import org.koin.dsl.module
  * Grafo de dependências.
  *
  * >>> PONTO DE TROCA PARA O BACKEND <<<
- * Auth, perfil, eventos e presença já usam Firebase. Chat e avaliações
- * permanecem em memória até suas implementações Firestore serem concluídas.
- * Nenhum ViewModel ou tela precisa mudar.
+ * Auth, perfil, eventos, presença, chat e avaliações usam Firebase.
+ * Os repositórios fake continuam em data/fake apenas para os testes.
  */
 val appModule = module {
 
     single<TimeProvider> { SystemTimeProvider }
-
-    // Banco em memória mantido temporariamente para chat e avaliações.
-    single { FakeDatabase(get()) }
 
     // Implementações reais: autenticação e perfil persistidos no Firebase.
     single { FirebaseAuth.getInstance() }
@@ -56,11 +51,9 @@ val appModule = module {
     // Eventos e presença já persistidos no Cloud Firestore.
     single<EventRepository> { FirestoreEventRepository(get(), get(), get()) }
 
-    // FAKE -> trocar por FirestoreChatRepository
-    single<ChatRepository> { FakeChatRepository(get(), get()) }
-
-    // FAKE -> trocar por FirestoreReviewRepository
-    single<ReviewRepository> { FakeReviewRepository(get(), get()) }
+    // Chat e avaliações persistidos no Cloud Firestore.
+    single<ChatRepository> { FirestoreChatRepository(get(), get()) }
+    single<ReviewRepository> { FirestoreReviewRepository(get(), get()) }
 
     // Lembretes locais (bloco F1).
     single<ReminderScheduler> { WorkManagerReminderScheduler(androidContext()) }

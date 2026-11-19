@@ -1,0 +1,804 @@
+diff --git a/README.md b/README.md
+index 85d8d0b..ea157e8 100644
+--- a/README.md
++++ b/README.md
+@@ -79,11 +79,11 @@ MVP com lógica MVVM e UI em Compose integradas:
+ - [x] Google Maps
+ - [x] Lembretes locais (WorkManager)
+ - [x] Tema claro/escuro com seletor no perfil (sistema, claro ou escuro)
+-- [ ] Chat e avaliações persistidos no Firestore
++- [x] Chat e avaliações persistidos no Firestore
+ - [ ] Google Sign-In
+ 
+-A autenticação, o perfil, os eventos e o RSVP já usam Firebase. Chat e avaliações
+-continuam em memória até a próxima etapa. O guia de backend está em
++A autenticação, o perfil, os eventos, o RSVP, o chat e as avaliações já usam Firebase.
++Publique o `firestore.rules` do repositório antes de rodar esta versão. O guia de backend está em
+ [docs/INTEGRACAO_BACKEND.md](docs/INTEGRACAO_BACKEND.md).
+ 
+ ### Rodando
+diff --git a/app/src/main/java/com/example/sociable/data/firebase/FirestoreChatMapper.kt b/app/src/main/java/com/example/sociable/data/firebase/FirestoreChatMapper.kt
+new file mode 100644
+index 0000000..3b9bca8
+--- /dev/null
++++ b/app/src/main/java/com/example/sociable/data/firebase/FirestoreChatMapper.kt
+@@ -0,0 +1,34 @@
++package com.example.sociable.data.firebase
++
++import com.example.sociable.data.model.Message
++
++/** Nomes dos campos da subcoleção `events/{eventId}/messages`. */
++internal object MessageFields {
++    const val AUTHOR_ID = "authorId"
++    const val AUTHOR_NAME = "authorName"
++    const val TEXT = "text"
++    const val SENT_AT = "sentAt"
++}
++
++/**
++ * Conversão pura de um documento de mensagem para o modelo de domínio.
++ *
++ * Devolve `null` para documentos incompletos, para que um documento malformado
++ * não derrube a conversa inteira. `sentAt` precisa vir como Timestamp: para
++ * mensagens ainda não confirmadas pelo servidor, quem lê o snapshot usa
++ * `ServerTimestampBehavior.ESTIMATE` e o campo chega preenchido.
++ */
++internal fun mapToMessage(id: String, eventId: String, data: Map<String, Any?>): Message? {
++    val authorId = data[MessageFields.AUTHOR_ID] as? String ?: return null
++    val text = data[MessageFields.TEXT] as? String ?: return null
++    val sentAt = data[MessageFields.SENT_AT].toInstantOrNull() ?: return null
++
++    return Message(
++        id = id,
++        eventId = eventId,
++        authorId = authorId,
++        authorName = data[MessageFields.AUTHOR_NAME] as? String ?: "",
++        text = text,
++        sentAt = sentAt,
++    )
++}
+diff --git a/app/src/main/java/com/example/sociable/data/firebase/FirestoreChatRepository.kt b/app/src/main/java/com/example/sociable/data/firebase/FirestoreChatRepository.kt
+new file mode 100644
+index 0000000..c2807b4
+--- /dev/null
++++ b/app/src/main/java/com/example/sociable/data/firebase/FirestoreChatRepository.kt
+@@ -0,0 +1,105 @@
++package com.example.sociable.data.firebase
++
++import com.example.sociable.core.AppError
++import com.example.sociable.core.AppResult
++import com.example.sociable.core.time.TimeProvider
++import com.example.sociable.core.validation.Validators
++import com.example.sociable.data.model.Message
++import com.example.sociable.data.repository.ChatRepository
++import com.google.firebase.firestore.DocumentSnapshot
++import com.google.firebase.firestore.FieldValue
++import com.google.firebase.firestore.FirebaseFirestore
++import com.google.firebase.firestore.Query
++import kotlinx.coroutines.CancellationException
++import kotlinx.coroutines.channels.awaitClose
++import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.callbackFlow
++import kotlinx.coroutines.tasks.await
++
++/**
++ * Chat do evento em `events/{eventId}/messages`.
++ *
++ * Quem pode ler e escrever é decidido pelas regras do Firestore (organizador ou
++ * quem confirmou presença). Sem permissão, o listener termina com erro
++ * PERMISSION_DENIED, que a camada de cima trata como chat indisponível.
++ *
++ * Só as últimas [MESSAGE_LIMIT] mensagens são carregadas; paginação do
++ * histórico fica para uma etapa posterior.
++ */
++class FirestoreChatRepository(
++    private val firestore: FirebaseFirestore,
++    private val timeProvider: TimeProvider,
++) : ChatRepository {
++
++    override fun observeMessages(eventId: String): Flow<List<Message>> = callbackFlow {
++        val query = messages(eventId)
++            .orderBy(MessageFields.SENT_AT, Query.Direction.ASCENDING)
++            .limitToLast(MESSAGE_LIMIT)
++
++        val registration = query.addSnapshotListener { snapshot, error ->
++            if (error != null) {
++                close(error)
++                return@addSnapshotListener
++            }
++            trySend(
++                snapshot?.documents.orEmpty().mapNotNull { document ->
++                    document.toDomainMessage(eventId)
++                }
++            )
++        }
++
++        awaitClose { registration.remove() }
++    }
++
++    override suspend fun sendMessage(
++        eventId: String,
++        authorId: String,
++        authorName: String,
++        text: String,
++    ): AppResult<Message> {
++        val trimmed = text.trim()
++        if (trimmed.isEmpty() || trimmed.length > Validators.MESSAGE_MAX) {
++            return AppResult.Failure(AppError.INVALID_INPUT)
++        }
++
++        return try {
++            val reference = messages(eventId).document()
++            val data = mapOf(
++                MessageFields.AUTHOR_ID to authorId,
++                MessageFields.AUTHOR_NAME to authorName.take(AUTHOR_NAME_MAX),
++                MessageFields.TEXT to trimmed,
++                MessageFields.SENT_AT to FieldValue.serverTimestamp(),
++            )
++            reference.set(data).await()
++            AppResult.Success(
++                Message(
++                    id = reference.id,
++                    eventId = eventId,
++                    authorId = authorId,
++                    authorName = authorName,
++                    text = trimmed,
++                    sentAt = timeProvider.now(),
++                )
++            )
++        } catch (exception: CancellationException) {
++            throw exception
++        } catch (exception: Exception) {
++            AppResult.Failure(exception.toFirebaseAppError(), exception)
++        }
++    }
++
++    private fun messages(eventId: String) =
++        firestore.collection(COLLECTION_EVENTS).document(eventId).collection(SUBCOLLECTION_MESSAGES)
++
++    /** Mensagem recém-enviada ainda sem horário do servidor usa a estimativa local. */
++    private fun DocumentSnapshot.toDomainMessage(eventId: String): Message? =
++        getData(DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
++            ?.let { data -> mapToMessage(id = id, eventId = eventId, data = data) }
++
++    private companion object {
++        const val COLLECTION_EVENTS = "events"
++        const val SUBCOLLECTION_MESSAGES = "messages"
++        const val MESSAGE_LIMIT = 200L
++        const val AUTHOR_NAME_MAX = 100
++    }
++}
+diff --git a/app/src/main/java/com/example/sociable/data/firebase/FirestoreEventMapper.kt b/app/src/main/java/com/example/sociable/data/firebase/FirestoreEventMapper.kt
+index 1e27721..73bc2e1 100644
+--- a/app/src/main/java/com/example/sociable/data/firebase/FirestoreEventMapper.kt
++++ b/app/src/main/java/com/example/sociable/data/firebase/FirestoreEventMapper.kt
+@@ -137,14 +137,14 @@ internal fun EventDraft.toPrivateLocationMap(): Map<String, Any?> = mapOf(
+     EventFields.LONGITUDE to longitude,
+ )
+ 
+-private fun Any?.toInstantOrNull(): Instant? = when (this) {
++internal fun Any?.toInstantOrNull(): Instant? = when (this) {
+     is Timestamp -> Instant.ofEpochSecond(seconds, nanoseconds.toLong())
+     is Date -> toInstant()
+     is Number -> Instant.ofEpochMilli(toLong())
+     else -> null
+ }
+ 
+-private fun Instant.toTimestamp(): Timestamp = Timestamp(epochSecond, nano)
++internal fun Instant.toTimestamp(): Timestamp = Timestamp(epochSecond, nano)
+ 
+ private fun String?.toCategory(): EventCategory =
+     this?.let { name ->
+diff --git a/app/src/main/java/com/example/sociable/data/firebase/FirestoreReviewMapper.kt b/app/src/main/java/com/example/sociable/data/firebase/FirestoreReviewMapper.kt
+new file mode 100644
+index 0000000..03fb379
+--- /dev/null
++++ b/app/src/main/java/com/example/sociable/data/firebase/FirestoreReviewMapper.kt
+@@ -0,0 +1,51 @@
++package com.example.sociable.data.firebase
++
++import com.example.sociable.data.model.RatingSummary
++import com.example.sociable.data.model.Review
++
++/** Nomes dos campos da subcoleção `events/{eventId}/reviews`. */
++internal object ReviewFields {
++    const val AUTHOR_ID = "authorId"
++    const val AUTHOR_NAME = "authorName"
++    const val RATING = "rating"
++    const val COMMENT = "comment"
++    const val CREATED_AT = "createdAt"
++}
++
++/**
++ * Id de domínio da avaliação, igual ao usado pelos repositórios fake.
++ * No Firestore, o documento fica em `events/{eventId}/reviews/{authorId}`:
++ * o id do documento ser o autor é o que garante uma avaliação por pessoa.
++ */
++internal fun reviewId(eventId: String, authorId: String): String = "${eventId}_$authorId"
++
++/**
++ * Conversão pura de um documento de avaliação para o modelo de domínio.
++ *
++ * [documentId] é o id do documento, que é o uid do autor. Devolve `null` quando
++ * faltam a nota ou a data, ou quando a nota está fora do intervalo de 1 a 5.
++ */
++internal fun mapToReview(eventId: String, documentId: String, data: Map<String, Any?>): Review? {
++    val rating = (data[ReviewFields.RATING] as? Number)?.toInt() ?: return null
++    if (rating !in 1..5) return null
++    val createdAt = data[ReviewFields.CREATED_AT].toInstantOrNull() ?: return null
++    val authorId = data[ReviewFields.AUTHOR_ID] as? String ?: documentId
++
++    return Review(
++        id = reviewId(eventId, authorId),
++        eventId = eventId,
++        authorId = authorId,
++        authorName = data[ReviewFields.AUTHOR_NAME] as? String ?: "",
++        rating = rating,
++        comment = data[ReviewFields.COMMENT] as? String ?: "",
++        createdAt = createdAt,
++    )
++}
++
++/** Média e quantidade calculadas a partir das avaliações recebidas. */
++internal fun List<Review>.toRatingSummary(): RatingSummary =
++    if (isEmpty()) {
++        RatingSummary()
++    } else {
++        RatingSummary(average = map { it.rating }.average(), count = size)
++    }
+diff --git a/app/src/main/java/com/example/sociable/data/firebase/FirestoreReviewRepository.kt b/app/src/main/java/com/example/sociable/data/firebase/FirestoreReviewRepository.kt
+new file mode 100644
+index 0000000..296eb6e
+--- /dev/null
++++ b/app/src/main/java/com/example/sociable/data/firebase/FirestoreReviewRepository.kt
+@@ -0,0 +1,115 @@
++package com.example.sociable.data.firebase
++
++import com.example.sociable.core.AppError
++import com.example.sociable.core.AppResult
++import com.example.sociable.core.time.TimeProvider
++import com.example.sociable.core.validation.Validators
++import com.example.sociable.data.model.RatingSummary
++import com.example.sociable.data.model.Review
++import com.example.sociable.data.repository.ReviewRepository
++import com.google.firebase.firestore.DocumentSnapshot
++import com.google.firebase.firestore.FieldValue
++import com.google.firebase.firestore.FirebaseFirestore
++import com.google.firebase.firestore.Query
++import kotlinx.coroutines.CancellationException
++import kotlinx.coroutines.channels.awaitClose
++import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.callbackFlow
++import kotlinx.coroutines.flow.map
++import kotlinx.coroutines.tasks.await
++
++/**
++ * Avaliações em `events/{eventId}/reviews/{authorId}`.
++ *
++ * O id do documento é o uid do autor: as regras só permitem criar (nunca
++ * alterar), então cada pessoa avalia um evento uma única vez. A média é
++ * calculada aqui no cliente a partir das avaliações; uma Cloud Function para
++ * desnormalizar a média no evento fica para quando o projeto migrar para o
++ * plano Blaze.
++ */
++class FirestoreReviewRepository(
++    private val firestore: FirebaseFirestore,
++    private val timeProvider: TimeProvider,
++) : ReviewRepository {
++
++    override fun observeReviews(eventId: String): Flow<List<Review>> = callbackFlow {
++        val query = reviews(eventId)
++            .orderBy(ReviewFields.CREATED_AT, Query.Direction.DESCENDING)
++            .limit(REVIEW_LIMIT)
++
++        val registration = query.addSnapshotListener { snapshot, error ->
++            if (error != null) {
++                close(error)
++                return@addSnapshotListener
++            }
++            trySend(
++                snapshot?.documents.orEmpty().mapNotNull { document ->
++                    document.toDomainReview(eventId)
++                }
++            )
++        }
++
++        awaitClose { registration.remove() }
++    }
++
++    override fun observeRating(eventId: String): Flow<RatingSummary> =
++        observeReviews(eventId).map { list -> list.toRatingSummary() }
++
++    override suspend fun submitReview(
++        eventId: String,
++        authorId: String,
++        authorName: String,
++        rating: Int,
++        comment: String,
++    ): AppResult<Review> {
++        if (Validators.rating(rating) != null || Validators.reviewComment(comment) != null) {
++            return AppResult.Failure(AppError.INVALID_INPUT)
++        }
++
++        return try {
++            val reference = reviews(eventId).document(authorId)
++            if (reference.get().await().exists()) {
++                return AppResult.Failure(AppError.ALREADY_REVIEWED)
++            }
++            val trimmedComment = comment.trim()
++            reference.set(
++                mapOf(
++                    ReviewFields.AUTHOR_ID to authorId,
++                    ReviewFields.AUTHOR_NAME to authorName.take(AUTHOR_NAME_MAX),
++                    ReviewFields.RATING to rating,
++                    ReviewFields.COMMENT to trimmedComment,
++                    ReviewFields.CREATED_AT to FieldValue.serverTimestamp(),
++                )
++            ).await()
++            AppResult.Success(
++                Review(
++                    id = reviewId(eventId, authorId),
++                    eventId = eventId,
++                    authorId = authorId,
++                    authorName = authorName,
++                    rating = rating,
++                    comment = trimmedComment,
++                    createdAt = timeProvider.now(),
++                )
++            )
++        } catch (exception: CancellationException) {
++            throw exception
++        } catch (exception: Exception) {
++            AppResult.Failure(exception.toFirebaseAppError(), exception)
++        }
++    }
++
++    private fun reviews(eventId: String) =
++        firestore.collection(COLLECTION_EVENTS).document(eventId).collection(SUBCOLLECTION_REVIEWS)
++
++    private fun DocumentSnapshot.toDomainReview(eventId: String): Review? =
++        getData(DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
++            ?.let { data -> mapToReview(eventId = eventId, documentId = id, data = data) }
++
++    private companion object {
++        const val COLLECTION_EVENTS = "events"
++        const val SUBCOLLECTION_REVIEWS = "reviews"
++        const val REVIEW_LIMIT = 100L
++        const val AUTHOR_NAME_MAX = 100
++    }
++}
+diff --git a/app/src/main/java/com/example/sociable/di/AppModule.kt b/app/src/main/java/com/example/sociable/di/AppModule.kt
+index bf0b68d..2845c52 100644
+--- a/app/src/main/java/com/example/sociable/di/AppModule.kt
++++ b/app/src/main/java/com/example/sociable/di/AppModule.kt
+@@ -4,16 +4,15 @@ import com.example.sociable.core.notifications.ReminderScheduler
+ import com.example.sociable.core.time.SystemTimeProvider
+ import org.koin.android.ext.koin.androidContext
+ import com.example.sociable.core.time.TimeProvider
+-import com.example.sociable.data.fake.FakeChatRepository
+-import com.example.sociable.data.fake.FakeDatabase
+-import com.example.sociable.data.fake.FakeReviewRepository
+ import com.example.sociable.data.repository.AuthRepository
+ import com.example.sociable.data.repository.ChatRepository
+ import com.example.sociable.data.repository.EventRepository
+ import com.example.sociable.data.repository.ReviewRepository
+ import com.example.sociable.data.repository.UserRepository
+ import com.example.sociable.data.firebase.FirebaseAuthRepository
++import com.example.sociable.data.firebase.FirestoreChatRepository
+ import com.example.sociable.data.firebase.FirestoreEventRepository
++import com.example.sociable.data.firebase.FirestoreReviewRepository
+ import com.example.sociable.data.firebase.FirestoreUserRepository
+ import com.example.sociable.data.notifications.WorkManagerReminderScheduler
+ import com.google.firebase.auth.FirebaseAuth
+@@ -35,17 +34,13 @@ import org.koin.dsl.module
+  * Grafo de dependências.
+  *
+  * >>> PONTO DE TROCA PARA O BACKEND <<<
+- * Auth, perfil, eventos e presença já usam Firebase. Chat e avaliações
+- * permanecem em memória até suas implementações Firestore serem concluídas.
+- * Nenhum ViewModel ou tela precisa mudar.
++ * Auth, perfil, eventos, presença, chat e avaliações usam Firebase.
++ * Os repositórios fake continuam em data/fake apenas para os testes.
+  */
+ val appModule = module {
+ 
+     single<TimeProvider> { SystemTimeProvider }
+ 
+-    // Banco em memória mantido temporariamente para chat e avaliações.
+-    single { FakeDatabase(get()) }
+-
+     // Implementações reais: autenticação e perfil persistidos no Firebase.
+     single { FirebaseAuth.getInstance() }
+     single { FirebaseFirestore.getInstance() }
+@@ -55,11 +50,9 @@ val appModule = module {
+     // Eventos e presença já persistidos no Cloud Firestore.
+     single<EventRepository> { FirestoreEventRepository(get(), get(), get()) }
+ 
+-    // FAKE -> trocar por FirestoreChatRepository
+-    single<ChatRepository> { FakeChatRepository(get(), get()) }
+-
+-    // FAKE -> trocar por FirestoreReviewRepository
+-    single<ReviewRepository> { FakeReviewRepository(get(), get()) }
++    // Chat e avaliações persistidos no Cloud Firestore.
++    single<ChatRepository> { FirestoreChatRepository(get(), get()) }
++    single<ReviewRepository> { FirestoreReviewRepository(get(), get()) }
+ 
+     // Lembretes locais (bloco F1).
+     single<ReminderScheduler> { WorkManagerReminderScheduler(androidContext()) }
+diff --git a/app/src/main/java/com/example/sociable/feature/chat/ChatViewModel.kt b/app/src/main/java/com/example/sociable/feature/chat/ChatViewModel.kt
+index 21e21a5..215568b 100644
+--- a/app/src/main/java/com/example/sociable/feature/chat/ChatViewModel.kt
++++ b/app/src/main/java/com/example/sociable/feature/chat/ChatViewModel.kt
+@@ -11,11 +11,15 @@ import com.example.sociable.data.model.Message
+ import com.example.sociable.data.repository.AuthRepository
+ import com.example.sociable.data.repository.ChatRepository
+ import com.example.sociable.data.repository.EventRepository
++import kotlinx.coroutines.ExperimentalCoroutinesApi
+ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.StateFlow
+ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.catch
+ import kotlinx.coroutines.flow.combine
++import kotlinx.coroutines.flow.distinctUntilChanged
++import kotlinx.coroutines.flow.flatMapLatest
++import kotlinx.coroutines.flow.flowOf
+ import kotlinx.coroutines.flow.update
+ import kotlinx.coroutines.launch
+ 
+@@ -29,6 +33,8 @@ data class ChatUiState(
+     val isSending: Boolean = false,
+     val error: AppError? = null,
+     val currentUserId: String = "",
++    /** Só o organizador e quem confirmou presença participam do chat. */
++    val isAvailable: Boolean = false,
+ )
+ 
+ class ChatViewModel(
+@@ -45,23 +51,35 @@ class ChatViewModel(
+ 
+     init {
+         viewModelScope.launch {
+-            combine(
+-                chatRepository.observeMessages(eventId),
+-                eventRepository.observeEvent(eventId),
+-            ) { messages, event ->
+-                messages to event
++            val userId = _uiState.value.currentUserId
++            val event = eventRepository.observeEvent(eventId)
++            val available = combine(
++                event,
++                eventRepository.observeRsvp(eventId, userId),
++            ) { current, rsvp ->
++                current != null && (current.organizerId == userId || rsvp.isGoing)
++            }.distinctUntilChanged()
++
++            @OptIn(ExperimentalCoroutinesApi::class)
++            val messages = available.flatMapLatest { canChat ->
++                if (canChat) chatRepository.observeMessages(eventId) else flowOf(emptyList())
++            }
++
++            combine(event, available, messages) { current, canChat, list ->
++                Triple(current, canChat, list)
+             }
+                 .catch { throwable ->
+                     _uiState.update {
+                         it.copy(isLoading = false, error = throwable.toAppError())
+                     }
+                 }
+-                .collect { (messages, event) ->
++                .collect { (current, canChat, list) ->
+                     _uiState.update {
+                         it.copy(
+-                            messages = messages,
+-                            eventTitle = event?.title.orEmpty(),
+-                            goingCount = event?.goingCount ?: 0,
++                            messages = list,
++                            eventTitle = current?.title.orEmpty(),
++                            goingCount = current?.goingCount ?: 0,
++                            isAvailable = canChat,
+                             isLoading = false,
+                         )
+                     }
+@@ -75,6 +93,10 @@ class ChatViewModel(
+ 
+     fun onSendClick() {
+         val state = _uiState.value
++        if (!state.isAvailable) {
++            _uiState.update { it.copy(error = AppError.CHAT_NOT_AVAILABLE) }
++            return
++        }
+         val inputError = Validators.message(state.input)
+         if (inputError != null) {
+             _uiState.update { it.copy(inputError = inputError) }
+diff --git a/app/src/main/java/com/example/sociable/ui/chat/ChatScreen.kt b/app/src/main/java/com/example/sociable/ui/chat/ChatScreen.kt
+index 495a75e..7da994a 100644
+--- a/app/src/main/java/com/example/sociable/ui/chat/ChatScreen.kt
++++ b/app/src/main/java/com/example/sociable/ui/chat/ChatScreen.kt
+@@ -109,6 +109,16 @@ fun ChatScreen(
+                 }
+             }
+ 
++            !state.isAvailable -> {
++                EmptyState(
++                    title = "Chat só para quem vai",
++                    subtitle = "Confirme presença no evento para ler e mandar mensagens.",
++                    modifier = Modifier
++                        .weight(1f)
++                        .padding(top = 32.dp),
++                )
++            }
++
+             state.messages.isEmpty() -> {
+                 EmptyState(
+                     title = "Ninguém falou nada ainda",
+@@ -163,29 +173,31 @@ fun ChatScreen(
+             }
+         }
+ 
+-        Row(
+-            modifier = Modifier.padding(12.dp),
+-            verticalAlignment = Alignment.CenterVertically,
+-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+-        ) {
+-            SociableTextField(
+-                label = "Mensagem",
+-                value = state.input,
+-                onChange = viewModel::onInputChange,
+-                modifier = Modifier.weight(1f),
+-                isError = inputError != null,
+-                supportingText = inputError?.message(),
+-                keyboardOptions = KeyboardOptions(
+-                    capitalization = KeyboardCapitalization.Sentences,
+-                    imeAction = ImeAction.Send,
+-                ),
+-                keyboardActions = KeyboardActions(onSend = { viewModel.onSendClick() }),
+-            )
+-            SociableChip(
+-                text = if (state.isSending) "…" else "Enviar",
+-                selected = true,
+-                onClick = { if (!state.isSending) viewModel.onSendClick() },
+-            )
++        if (state.isAvailable) {
++            Row(
++                modifier = Modifier.padding(12.dp),
++                verticalAlignment = Alignment.CenterVertically,
++                horizontalArrangement = Arrangement.spacedBy(8.dp),
++            ) {
++                SociableTextField(
++                    label = "Mensagem",
++                    value = state.input,
++                    onChange = viewModel::onInputChange,
++                    modifier = Modifier.weight(1f),
++                    isError = inputError != null,
++                    supportingText = inputError?.message(),
++                    keyboardOptions = KeyboardOptions(
++                        capitalization = KeyboardCapitalization.Sentences,
++                        imeAction = ImeAction.Send,
++                    ),
++                    keyboardActions = KeyboardActions(onSend = { viewModel.onSendClick() }),
++                )
++                SociableChip(
++                    text = if (state.isSending) "…" else "Enviar",
++                    selected = true,
++                    onClick = { if (!state.isSending) viewModel.onSendClick() },
++                )
++            }
+         }
+         ErrorText(
+             error = state.error,
+diff --git a/app/src/test/java/com/example/sociable/data/firebase/FirestoreChatMapperTest.kt b/app/src/test/java/com/example/sociable/data/firebase/FirestoreChatMapperTest.kt
+new file mode 100644
+index 0000000..d7cc975
+--- /dev/null
++++ b/app/src/test/java/com/example/sociable/data/firebase/FirestoreChatMapperTest.kt
+@@ -0,0 +1,47 @@
++package com.example.sociable.data.firebase
++
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertNotNull
++import org.junit.Assert.assertNull
++import org.junit.Test
++import java.time.Instant
++import java.util.Date
++
++class FirestoreChatMapperTest {
++
++    private val sentAt = Instant.parse("2026-03-10T20:00:00Z")
++
++    private fun data(): Map<String, Any?> = mapOf(
++        MessageFields.AUTHOR_ID to "user-1",
++        MessageFields.AUTHOR_NAME to "Ana",
++        MessageFields.TEXT to "Bora?",
++        MessageFields.SENT_AT to Date.from(sentAt),
++    )
++
++    @Test
++    fun `mapeia documento completo`() {
++        val message = mapToMessage("m1", "event-1", data())
++
++        assertNotNull(message)
++        assertEquals("m1", message!!.id)
++        assertEquals("event-1", message.eventId)
++        assertEquals("user-1", message.authorId)
++        assertEquals("Ana", message.authorName)
++        assertEquals("Bora?", message.text)
++        assertEquals(sentAt, message.sentAt)
++    }
++
++    @Test
++    fun `descarta documento sem texto, autor ou data`() {
++        assertNull(mapToMessage("m1", "e", data() - MessageFields.TEXT))
++        assertNull(mapToMessage("m1", "e", data() - MessageFields.AUTHOR_ID))
++        assertNull(mapToMessage("m1", "e", data() - MessageFields.SENT_AT))
++    }
++
++    @Test
++    fun `nome do autor ausente vira vazio`() {
++        val message = mapToMessage("m1", "e", data() - MessageFields.AUTHOR_NAME)
++
++        assertEquals("", message!!.authorName)
++    }
++}
+diff --git a/app/src/test/java/com/example/sociable/data/firebase/FirestoreReviewMapperTest.kt b/app/src/test/java/com/example/sociable/data/firebase/FirestoreReviewMapperTest.kt
+new file mode 100644
+index 0000000..f276164
+--- /dev/null
++++ b/app/src/test/java/com/example/sociable/data/firebase/FirestoreReviewMapperTest.kt
+@@ -0,0 +1,64 @@
++package com.example.sociable.data.firebase
++
++import com.example.sociable.data.model.RatingSummary
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertNull
++import org.junit.Test
++import java.time.Instant
++import java.util.Date
++
++class FirestoreReviewMapperTest {
++
++    private val createdAt = Instant.parse("2026-03-11T10:00:00Z")
++
++    private fun data(rating: Any? = 4L): Map<String, Any?> = mapOf(
++        ReviewFields.AUTHOR_ID to "user-1",
++        ReviewFields.AUTHOR_NAME to "Ana",
++        ReviewFields.RATING to rating,
++        ReviewFields.COMMENT to "Muito bom",
++        ReviewFields.CREATED_AT to Date.from(createdAt),
++    )
++
++    @Test
++    fun `mapeia documento completo e usa id composto`() {
++        val review = mapToReview("event-1", "user-1", data())!!
++
++        assertEquals("event-1_user-1", review.id)
++        assertEquals("user-1", review.authorId)
++        assertEquals(4, review.rating)
++        assertEquals("Muito bom", review.comment)
++        assertEquals(createdAt, review.createdAt)
++    }
++
++    @Test
++    fun `usa o id do documento quando authorId falta`() {
++        val review = mapToReview("event-1", "user-9", data() - ReviewFields.AUTHOR_ID)!!
++
++        assertEquals("user-9", review.authorId)
++    }
++
++    @Test
++    fun `descarta nota invalida ou data ausente`() {
++        assertNull(mapToReview("e", "u", data(rating = 0L)))
++        assertNull(mapToReview("e", "u", data(rating = 6L)))
++        assertNull(mapToReview("e", "u", data(rating = "5")))
++        assertNull(mapToReview("e", "u", data() - ReviewFields.CREATED_AT))
++    }
++
++    @Test
++    fun `calcula media e quantidade`() {
++        val reviews = listOf(5L, 4L, 3L).mapIndexed { index, rating ->
++            mapToReview("e", "u$index", data(rating) + (ReviewFields.AUTHOR_ID to "u$index"))!!
++        }
++
++        val summary = reviews.toRatingSummary()
++
++        assertEquals(4.0, summary.average, 0.0001)
++        assertEquals(3, summary.count)
++    }
++
++    @Test
++    fun `lista vazia gera resumo vazio`() {
++        assertEquals(RatingSummary(), emptyList<com.example.sociable.data.model.Review>().toRatingSummary())
++    }
++}
+diff --git a/docs/INTEGRACAO_BACKEND.md b/docs/INTEGRACAO_BACKEND.md
+index 19a0a1a..d98d24b 100644
+--- a/docs/INTEGRACAO_BACKEND.md
++++ b/docs/INTEGRACAO_BACKEND.md
+@@ -84,15 +84,18 @@ Mapeamento sugerido de exceções:
+ 
+ ### ChatRepository
+ 
+-- `observeMessages(eventId)` → `events/{eventId}/messages` ordenado por `sentAt`, `limitToLast(50)`.
++- `observeMessages(eventId)` → `events/{eventId}/messages` ordenado por `sentAt`, `limitToLast(200)`. Só organizador e quem confirmou presença leem e enviam (regras).
+ - `sendMessage(...)` → `add()` com `FieldValue.serverTimestamp()`.
+ 
+ ### ReviewRepository
+ 
+ - `observeReviews(eventId)` → `events/{eventId}/reviews` ordenado por `createdAt`.
+ - `observeRating(eventId)` → média/quantidade (pode ser derivada das reviews no MVP).
+-- `submitReview(...)` → documento com id `"${eventId}_${authorId}"` para garantir **1 avaliação por usuário**.
+-  Uma Cloud Function (ou transação) atualiza `ratingAvg`/`ratingCount` no evento.
++- `submitReview(...)` → documento `events/{eventId}/reviews/{authorId}` (id do documento = uid) para
++  garantir **1 avaliação por usuário**; as regras só permitem criar, nunca alterar. O `id` de domínio
++  continua `"${eventId}_${authorId}"`. Só quem confirmou presença, e não organiza o evento, avalia.
++  A média é calculada no cliente (últimas 100 avaliações); uma Cloud Function para
++  `ratingAvg`/`ratingCount` no evento fica para o plano Blaze.
+ 
+ ## Estrutura sugerida no Firestore
+ 
+@@ -235,9 +238,10 @@ Já usam Firebase:
+ - `data/firebase/FirebaseErrorMapper.kt`: tradução de erros Firebase para `AppError`.
+ - `data/firebase/FirestoreEventRepository.kt`: feed em tempo real, detalhe, criação e RSVP.
+ - `data/firebase/FirestoreEventMapper.kt`: conversão de eventos e do local privado do segredinho.
++- `data/firebase/FirestoreChatRepository.kt` e `FirestoreChatMapper.kt`: mensagens do evento.
++- `data/firebase/FirestoreReviewRepository.kt` e `FirestoreReviewMapper.kt`: avaliações e média.
+ 
+-O Koin já injeta essas implementações. Chat e avaliações continuam nos repositórios fake até a
+-próxima etapa.
++O Koin já injeta essas implementações. Os repositórios fake ficam só para os testes.
+ 
+ ### Eventos no Firestore
+ 
+diff --git a/firestore.rules b/firestore.rules
+index 485a340..1b1bb59 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -138,6 +138,49 @@ service cloud.firestore {
+         allow read: if isEventParticipant(eventId);
+         allow write: if isEventOrganizer(eventId) || isEventOrganizerAfterWrite(eventId);
+       }
++
++      // Chat: só organizador e quem confirmou presença leem e enviam.
++      // Mensagens não podem ser editadas nem apagadas pelo cliente.
++      match /messages/{messageId} {
++        allow read: if isEventParticipant(eventId);
++
++        allow create: if isEventParticipant(eventId)
++          && request.resource.data.keys().hasOnly(['authorId', 'authorName', 'text', 'sentAt'])
++          && request.resource.data.keys().hasAll(['authorId', 'authorName', 'text', 'sentAt'])
++          && request.resource.data.authorId == request.auth.uid
++          && request.resource.data.authorName is string
++          && request.resource.data.authorName.size() <= 100
++          && request.resource.data.text is string
++          && request.resource.data.text.size() > 0
++          && request.resource.data.text.size() <= 500
++          && request.resource.data.sentAt == request.time;
++
++        allow update, delete: if false;
++      }
++
++      // Avaliações: o id do documento é o uid do autor (uma por pessoa) e
++      // só quem confirmou presença, e não organiza o evento, pode avaliar.
++      match /reviews/{userId} {
++        allow read: if signedIn();
++
++        allow create: if signedIn()
++          && request.auth.uid == userId
++          && hasRsvp(eventId)
++          && eventData(eventId).organizerId != request.auth.uid
++          && request.resource.data.keys().hasOnly(['authorId', 'authorName', 'rating', 'comment', 'createdAt'])
++          && request.resource.data.keys().hasAll(['authorId', 'authorName', 'rating', 'comment', 'createdAt'])
++          && request.resource.data.authorId == userId
++          && request.resource.data.authorName is string
++          && request.resource.data.authorName.size() <= 100
++          && request.resource.data.rating is int
++          && request.resource.data.rating >= 1
++          && request.resource.data.rating <= 5
++          && request.resource.data.comment is string
++          && request.resource.data.comment.size() <= 300
++          && request.resource.data.createdAt == request.time;
++
++        allow update, delete: if false;
++      }
+     }
+   }
+ }

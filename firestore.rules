@@ -138,6 +138,49 @@ service cloud.firestore {
         allow read: if isEventParticipant(eventId);
         allow write: if isEventOrganizer(eventId) || isEventOrganizerAfterWrite(eventId);
       }
+
+      // Chat: só organizador e quem confirmou presença leem e enviam.
+      // Mensagens não podem ser editadas nem apagadas pelo cliente.
+      match /messages/{messageId} {
+        allow read: if isEventParticipant(eventId);
+
+        allow create: if isEventParticipant(eventId)
+          && request.resource.data.keys().hasOnly(['authorId', 'authorName', 'text', 'sentAt'])
+          && request.resource.data.keys().hasAll(['authorId', 'authorName', 'text', 'sentAt'])
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.authorName is string
+          && request.resource.data.authorName.size() <= 100
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 500
+          && request.resource.data.sentAt == request.time;
+
+        allow update, delete: if false;
+      }
+
+      // Avaliações: o id do documento é o uid do autor (uma por pessoa) e
+      // só quem confirmou presença, e não organiza o evento, pode avaliar.
+      match /reviews/{userId} {
+        allow read: if signedIn();
+
+        allow create: if signedIn()
+          && request.auth.uid == userId
+          && hasRsvp(eventId)
+          && eventData(eventId).organizerId != request.auth.uid
+          && request.resource.data.keys().hasOnly(['authorId', 'authorName', 'rating', 'comment', 'createdAt'])
+          && request.resource.data.keys().hasAll(['authorId', 'authorName', 'rating', 'comment', 'createdAt'])
+          && request.resource.data.authorId == userId
+          && request.resource.data.authorName is string
+          && request.resource.data.authorName.size() <= 100
+          && request.resource.data.rating is int
+          && request.resource.data.rating >= 1
+          && request.resource.data.rating <= 5
+          && request.resource.data.comment is string
+          && request.resource.data.comment.size() <= 300
+          && request.resource.data.createdAt == request.time;
+
+        allow update, delete: if false;
+      }
     }
   }
 }
