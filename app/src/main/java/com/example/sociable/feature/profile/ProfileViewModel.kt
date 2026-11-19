@@ -8,6 +8,10 @@ import com.example.sociable.core.toAppError
 import com.example.sociable.core.validation.ValidationError
 import com.example.sociable.core.validation.Validators
 import com.example.sociable.data.model.Interest
+import com.example.sociable.data.model.LifeStage
+import com.example.sociable.data.model.LookingFor
+import com.example.sociable.data.model.LookingForRules
+import com.example.sociable.data.model.SocialVibe
 import com.example.sociable.data.repository.AuthRepository
 import com.example.sociable.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +27,9 @@ data class ProfileUiState(
     val bio: String = "",
     val photoUrl: String = "",
     val interests: Set<Interest> = emptySet(),
+    val lifeStage: LifeStage? = null,
+    val lookingFor: Set<LookingFor> = emptySet(),
+    val socialVibe: SocialVibe? = null,
     val nameError: ValidationError? = null,
     val bioError: ValidationError? = null,
     val photoUrlError: ValidationError? = null,
@@ -66,6 +73,9 @@ class ProfileViewModel(
                                     bio = user.bio,
                                     photoUrl = user.photoUrl.orEmpty(),
                                     interests = user.interests,
+                                    lifeStage = user.lifeStage,
+                                    lookingFor = user.lookingFor,
+                                    socialVibe = user.socialVibe,
                                     isLoading = false,
                                 )
                             }
@@ -98,6 +108,35 @@ class ProfileViewModel(
         }
     }
 
+    fun onLifeStageSelect(value: LifeStage) {
+        _uiState.update { state ->
+            state.copy(
+                lifeStage = if (state.lifeStage == value) null else value,
+                isSaved = false,
+            )
+        }
+    }
+
+    fun onLookingForToggle(value: LookingFor) {
+        _uiState.update { state ->
+            val lookingFor = when {
+                value in state.lookingFor -> state.lookingFor - value
+                state.lookingFor.size >= LookingForRules.MAX_CHOICES -> state.lookingFor
+                else -> state.lookingFor + value
+            }
+            state.copy(lookingFor = lookingFor, isSaved = false)
+        }
+    }
+
+    fun onSocialVibeSelect(value: SocialVibe) {
+        _uiState.update { state ->
+            state.copy(
+                socialVibe = if (state.socialVibe == value) null else value,
+                isSaved = false,
+            )
+        }
+    }
+
     fun onSaveClick() {
         val id = userId
         if (id == null) {
@@ -122,13 +161,27 @@ class ProfileViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null, isSaved = false) }
+
+            val profileResult = userRepository.updateProfile(
+                userId = id,
+                name = state.name,
+                bio = state.bio,
+                photoUrl = state.photoUrl.takeIf { it.isNotBlank() },
+                interests = state.interests,
+            )
+            if (profileResult is AppResult.Failure) {
+                _uiState.update {
+                    it.copy(isSaving = false, error = profileResult.error)
+                }
+                return@launch
+            }
+
             when (
-                val result = userRepository.updateProfile(
+                val socialResult = userRepository.updateSocialProfile(
                     userId = id,
-                    name = state.name,
-                    bio = state.bio,
-                    photoUrl = state.photoUrl.takeIf { it.isNotBlank() },
-                    interests = state.interests,
+                    lifeStage = state.lifeStage,
+                    lookingFor = state.lookingFor,
+                    socialVibe = state.socialVibe,
                 )
             ) {
                 is AppResult.Success -> _uiState.update {
@@ -136,7 +189,7 @@ class ProfileViewModel(
                 }
 
                 is AppResult.Failure -> _uiState.update {
-                    it.copy(isSaving = false, error = result.error)
+                    it.copy(isSaving = false, error = socialResult.error)
                 }
             }
         }
