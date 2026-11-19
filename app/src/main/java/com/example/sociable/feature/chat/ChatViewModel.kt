@@ -11,11 +11,15 @@ import com.example.sociable.data.model.Message
 import com.example.sociable.data.repository.AuthRepository
 import com.example.sociable.data.repository.ChatRepository
 import com.example.sociable.data.repository.EventRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -29,6 +33,8 @@ data class ChatUiState(
     val isSending: Boolean = false,
     val error: AppError? = null,
     val currentUserId: String = "",
+    /** Só o organizador e quem confirmou presença participam do chat. */
+    val isAvailable: Boolean = false,
 )
 
 class ChatViewModel(
@@ -45,23 +51,35 @@ class ChatViewModel(
 
     init {
         viewModelScope.launch {
-            combine(
-                chatRepository.observeMessages(eventId),
-                eventRepository.observeEvent(eventId),
-            ) { messages, event ->
-                messages to event
+            val userId = _uiState.value.currentUserId
+            val event = eventRepository.observeEvent(eventId)
+            val available = combine(
+                event,
+                eventRepository.observeRsvp(eventId, userId),
+            ) { current, rsvp ->
+                current != null && (current.organizerId == userId || rsvp.isGoing)
+            }.distinctUntilChanged()
+
+            @OptIn(ExperimentalCoroutinesApi::class)
+            val messages = available.flatMapLatest { canChat ->
+                if (canChat) chatRepository.observeMessages(eventId) else flowOf(emptyList())
+            }
+
+            combine(event, available, messages) { current, canChat, list ->
+                Triple(current, canChat, list)
             }
                 .catch { throwable ->
                     _uiState.update {
                         it.copy(isLoading = false, error = throwable.toAppError())
                     }
                 }
-                .collect { (messages, event) ->
+                .collect { (current, canChat, list) ->
                     _uiState.update {
                         it.copy(
-                            messages = messages,
-                            eventTitle = event?.title.orEmpty(),
-                            goingCount = event?.goingCount ?: 0,
+                            messages = list,
+                            eventTitle = current?.title.orEmpty(),
+                            goingCount = current?.goingCount ?: 0,
+                            isAvailable = canChat,
                             isLoading = false,
                         )
                     }
@@ -75,6 +93,10 @@ class ChatViewModel(
 
     fun onSendClick() {
         val state = _uiState.value
+        if (!state.isAvailable) {
+            _uiState.update { it.copy(error = AppError.CHAT_NOT_AVAILABLE) }
+            return
+        }
         val inputError = Validators.message(state.input)
         if (inputError != null) {
             _uiState.update { it.copy(inputError = inputError) }

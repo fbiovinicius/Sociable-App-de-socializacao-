@@ -84,15 +84,18 @@ Mapeamento sugerido de exceções:
 
 ### ChatRepository
 
-- `observeMessages(eventId)` → `events/{eventId}/messages` ordenado por `sentAt`, `limitToLast(50)`.
+- `observeMessages(eventId)` → `events/{eventId}/messages` ordenado por `sentAt`, `limitToLast(200)`. Só organizador e quem confirmou presença leem e enviam (regras).
 - `sendMessage(...)` → `add()` com `FieldValue.serverTimestamp()`.
 
 ### ReviewRepository
 
 - `observeReviews(eventId)` → `events/{eventId}/reviews` ordenado por `createdAt`.
 - `observeRating(eventId)` → média/quantidade (pode ser derivada das reviews no MVP).
-- `submitReview(...)` → documento com id `"${eventId}_${authorId}"` para garantir **1 avaliação por usuário**.
-  Uma Cloud Function (ou transação) atualiza `ratingAvg`/`ratingCount` no evento.
+- `submitReview(...)` → documento `events/{eventId}/reviews/{authorId}` (id do documento = uid) para
+  garantir **1 avaliação por usuário**; as regras só permitem criar, nunca alterar. O `id` de domínio
+  continua `"${eventId}_${authorId}"`. Só quem confirmou presença, e não organiza o evento, avalia.
+  A média é calculada no cliente (últimas 100 avaliações); uma Cloud Function para
+  `ratingAvg`/`ratingCount` no evento fica para o plano Blaze.
 
 ## Estrutura sugerida no Firestore
 
@@ -235,9 +238,10 @@ Já usam Firebase:
 - `data/firebase/FirebaseErrorMapper.kt`: tradução de erros Firebase para `AppError`.
 - `data/firebase/FirestoreEventRepository.kt`: feed em tempo real, detalhe, criação e RSVP.
 - `data/firebase/FirestoreEventMapper.kt`: conversão de eventos e do local privado do segredinho.
+- `data/firebase/FirestoreChatRepository.kt` e `FirestoreChatMapper.kt`: mensagens do evento.
+- `data/firebase/FirestoreReviewRepository.kt` e `FirestoreReviewMapper.kt`: avaliações e média.
 
-O Koin já injeta essas implementações. Chat e avaliações continuam nos repositórios fake até a
-próxima etapa.
+O Koin já injeta essas implementações. Os repositórios fake ficam só para os testes.
 
 ### Eventos no Firestore
 

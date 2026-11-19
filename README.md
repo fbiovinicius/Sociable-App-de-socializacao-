@@ -79,11 +79,11 @@ MVP com lógica MVVM e UI em Compose integradas:
 - [x] Google Maps
 - [x] Lembretes locais (WorkManager)
 - [x] Tema claro/escuro com seletor no perfil (sistema, claro ou escuro)
-- [ ] Chat e avaliações persistidos no Firestore
+- [x] Chat e avaliações persistidos no Firestore
 - [ ] Google Sign-In
 
-A autenticação, o perfil, os eventos e o RSVP já usam Firebase. Chat e avaliações
-continuam em memória até a próxima etapa. O guia de backend está em
+A autenticação, o perfil, os eventos, o RSVP, o chat e as avaliações já usam Firebase.
+Publique o `firestore.rules` do repositório antes de rodar esta versão. O guia de backend está em
 [docs/INTEGRACAO_BACKEND.md](docs/INTEGRACAO_BACKEND.md).
 
 ### Rodando
