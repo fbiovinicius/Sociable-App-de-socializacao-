@@ -13,5 +13,8 @@ data class User(
     val bio: String = "",
     val photoUrl: String? = null,
     val interests: Set<Interest> = emptySet(),
+    val lifeStage: LifeStage? = null,
+    val lookingFor: Set<LookingFor> = emptySet(),
+    val socialVibe: SocialVibe? = null,
     val createdAt: Instant,
 )
