@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 data class CreateEventUiState(
     val startAt: Instant,
@@ -27,8 +28,8 @@ data class CreateEventUiState(
     val category: EventCategory = EventCategory.PARTY,
     val venueName: String = "",
     val address: String = "",
-    val latitude: String = "-3.1190",
-    val longitude: String = "-60.0217",
+    val latitude: String = "",
+    val longitude: String = "",
     val isFree: Boolean = true,
     val isSecret: Boolean = false,
     val price: String = "",
@@ -85,12 +86,24 @@ class CreateEventViewModel(
         _uiState.update { it.copy(address = value, addressError = null, error = null) }
     }
 
-    fun onLatitudeChange(value: String) {
-        _uiState.update { it.copy(latitude = value, latitudeError = null, error = null) }
+    /** Preenche o endereço sugerido pelo mapa sem sobrescrever o que a pessoa já digitou. */
+    fun onAddressIfBlank(value: String) {
+        _uiState.update {
+            if (it.address.isBlank()) it.copy(address = value, addressError = null) else it
+        }
     }
 
-    fun onLongitudeChange(value: String) {
-        _uiState.update { it.copy(longitude = value, longitudeError = null, error = null) }
+    /** Ponto escolhido no mapa. Seis casas decimais dão precisão de cerca de 10 cm. */
+    fun onLocationPicked(latitude: Double, longitude: Double) {
+        _uiState.update {
+            it.copy(
+                latitude = String.format(Locale.US, "%.6f", latitude),
+                longitude = String.format(Locale.US, "%.6f", longitude),
+                latitudeError = null,
+                longitudeError = null,
+                error = null,
+            )
+        }
     }
 
     fun onStartShift(hours: Long) {

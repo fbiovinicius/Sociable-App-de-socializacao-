@@ -1,7 +1,6 @@
 package com.example.sociable.ui.map
 
 import android.Manifest
-import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -41,7 +40,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.sociable.R
 import com.example.sociable.core.time.ManausTime
@@ -71,11 +69,9 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
 import kotlinx.coroutines.launch
 
+
 /* Mapa do Google (Maps Compose). A chave de API vem de MAPS_API_KEY em local.properties
    e é injetada no AndroidManifest pelo build.gradle.kts do módulo app. */
-
-private val MANAUS_CENTER = LatLng(-3.12, -60.01)
-private const val DEFAULT_ZOOM = 12f
 
 private val mapFilters = listOf(
     "Todos", "Agora", "Gratuitos", "Música", "Gastronomia", "Esporte", "Cultura",
@@ -137,18 +133,7 @@ fun MapScreen(
     }
 
     // Permissão de localização: habilita o ponto azul "você está aqui" do Google Maps.
-    var hasLocationPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-            ) == PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                ) == PackageManager.PERMISSION_GRANTED,
-        )
-    }
+    var hasLocationPermission by remember { mutableStateOf(context.hasLocationPermission()) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result -> hasLocationPermission = result.values.any { it } }
@@ -160,6 +145,17 @@ fun MapScreen(
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION,
                 ),
+            )
+        }
+    }
+
+    // Ao abrir o mapa (e quando a permissão for concedida), centraliza em quem está usando.
+    // Sem permissão ou sem posição, o mapa continua em Manaus.
+    LaunchedEffect(hasLocationPermission) {
+        if (!hasLocationPermission) return@LaunchedEffect
+        context.currentLatLngOrNull()?.let { position ->
+            cameraPositionState.animate(
+                CameraUpdateFactory.newLatLngZoom(position, USER_ZOOM),
             )
         }
     }
@@ -278,11 +274,25 @@ fun MapScreen(
             MapButton("−", "Diminuir zoom") {
                 scope.launch { cameraPositionState.animate(CameraUpdateFactory.zoomOut()) }
             }
-            MapButton("◎", "Centralizar no mapa de Manaus") {
-                scope.launch {
-                    cameraPositionState.animate(
-                        CameraUpdateFactory.newLatLngZoom(MANAUS_CENTER, DEFAULT_ZOOM),
+            MapButton("◎", "Centralizar na sua localização") {
+                if (!hasLocationPermission) {
+                    permissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
+                        ),
                     )
+                } else {
+                    scope.launch {
+                        val target = context.currentLatLngOrNull()
+                        cameraPositionState.animate(
+                            if (target != null) {
+                                CameraUpdateFactory.newLatLngZoom(target, USER_ZOOM)
+                            } else {
+                                CameraUpdateFactory.newLatLngZoom(MANAUS_CENTER, DEFAULT_ZOOM)
+                            },
+                        )
+                    }
                 }
             }
         }

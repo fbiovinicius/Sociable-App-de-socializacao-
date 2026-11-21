@@ -20,7 +20,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -38,6 +44,8 @@ import com.example.sociable.ui.common.SociableChip
 import com.example.sociable.ui.common.StickerBox
 import com.example.sociable.ui.common.message
 import com.example.sociable.ui.theme.SociableTheme
+import com.google.android.gms.maps.model.LatLng
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -48,6 +56,30 @@ fun CreateEventScreen(
     onBack: () -> Unit,
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var showPicker by remember { mutableStateOf(false) }
+
+    if (showPicker) {
+        LocationPickerDialog(
+            initial = state.latitude.toDoubleOrNull()?.let { lat ->
+                state.longitude.toDoubleOrNull()?.let { lng -> LatLng(lat, lng) }
+            },
+            onDismiss = { showPicker = false },
+            onConfirm = { point ->
+                showPicker = false
+                viewModel.onLocationPicked(point.latitude, point.longitude)
+                // Preenche o endereço só se a pessoa ainda não digitou nada.
+                if (state.address.isBlank()) {
+                    scope.launch {
+                        context.addressFor(point.latitude, point.longitude)?.let { found ->
+                            viewModel.onAddressIfBlank(found)
+                        }
+                    }
+                }
+            },
+        )
+    }
 
     LaunchedEffect(startAsSecret) {
         if (startAsSecret) viewModel.onSecretChange(true)
@@ -141,22 +173,21 @@ fun CreateEventScreen(
             error = state.addressError,
         )
         Spacer(modifier = Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FormTextField(
-                value = state.latitude,
-                onValueChange = viewModel::onLatitudeChange,
-                label = "Latitude",
-                error = state.latitudeError,
-                keyboardType = KeyboardType.Decimal,
-                modifier = Modifier.weight(1f),
-            )
-            FormTextField(
-                value = state.longitude,
-                onValueChange = viewModel::onLongitudeChange,
-                label = "Longitude",
-                error = state.longitudeError,
-                keyboardType = KeyboardType.Decimal,
-                modifier = Modifier.weight(1f),
+        val pickedPoint = state.latitude.toDoubleOrNull()?.let { lat ->
+            state.longitude.toDoubleOrNull()?.let { lng -> LatLng(lat, lng) }
+        }
+        SociableChip(
+            text = if (pickedPoint == null) "📍 Escolher no mapa" else "📍 Local marcado · mudar no mapa",
+            selected = pickedPoint != null,
+            onClick = { showPicker = true },
+        )
+        if (state.latitudeError != null || state.longitudeError != null) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Toque em \"Escolher no mapa\" para marcar o local do evento.",
+                color = SociableTheme.ink,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
             )
         }
 
