@@ -45,7 +45,7 @@ fun EventCard(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (event.isSecret) "🔒 Segredinho" else event.category.label,
+                        text = if (event.isSecret) "🔒 Chat da Cidade" else event.category.label,
                         color = SociableTheme.muted,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,

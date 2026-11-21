@@ -135,7 +135,7 @@ fun CreateEventScreen(
                 )
             }
             SociableChip(
-                text = "🔒 Segredinho",
+                text = "🔒 Chat da Cidade",
                 selected = state.isSecret,
                 onClick = { viewModel.onSecretChange(!state.isSecret) },
             )

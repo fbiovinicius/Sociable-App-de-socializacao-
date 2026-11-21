@@ -50,7 +50,7 @@ index 0024955..4251385 100644
      }
  
      fun onStartShift(hours: Long) {
-diff --git a/app/src/main/java/com/example/sociable/ui/events/CreateEventScreen.kt b/app/src/main/java/com/example/sociable/ui/events/CreateEventScreen.kt
+diff --git a/app/src/main/java/com/example/sociable/ui/events/text = .kt b/app/src/main/java/com/example/sociable/ui/events/CreateEventScreen.kt
 index e92ff80..02c5eec 100644
 --- a/app/src/main/java/com/example/sociable/ui/events/CreateEventScreen.kt
 +++ b/app/src/main/java/com/example/sociable/ui/events/CreateEventScreen.kt
