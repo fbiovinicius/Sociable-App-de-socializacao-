@@ -17,7 +17,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sociable.ui.common.SociableButton
-import com.example.sociable.ui.common.SociableChip
 import com.example.sociable.ui.common.SociableLogo
 import com.example.sociable.ui.theme.SociableTheme
 
@@ -47,12 +46,6 @@ fun WelcomeScreen(
                 color = SociableTheme.ink,
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-            SociableChip(
-                text = "✦ Rolês, cultura e gente nova",
-                selected = false,
-                onClick = {},
             )
         }
 
