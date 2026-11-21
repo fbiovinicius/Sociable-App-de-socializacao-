@@ -12,4 +12,18 @@ enum class Interest(val label: String) {
     ACADEMIC("Acadêmico"),
     OUTDOORS("Ao ar livre"),
     GAMES("Games"),
+
+    CRAFTS("Artesanato"),
+
+    CINEMA("Cinema"),
+
+    PHOTO("Fotografia"),
+
+    THEATER("Teatro"),
+
+    DANCE("Dança"),
+
+    READING("Leitura"),
+
+    COFFEE("Café"),
 }
