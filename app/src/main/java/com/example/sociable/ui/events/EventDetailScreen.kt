@@ -19,6 +19,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -54,9 +58,12 @@ fun EventDetailScreen(
     onBack: () -> Unit,
     onChatClick: () -> Unit,
     onReviewsClick: () -> Unit,
+    onEditClick: () -> Unit,
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
     val event = state.event
+    val isOrganizer = event != null && event.organizerId == viewModel.currentUserId
+    var confirmingCancel by remember { mutableStateOf(false) }
 
     // Lembrete local (bloco F1): no Android 13+ a notificação depende de
     // permissão em runtime; pedimos no momento em que a pessoa confirma presença.
@@ -230,7 +237,24 @@ fun EventDetailScreen(
                         )
                     }
 
-                    SociableButton(
+                    if (state.isCancelled) {
+                        StickerBox(
+                            modifier = Modifier.fillMaxWidth(),
+                            fill = SociableTheme.accentSoft,
+                            radius = 14.dp,
+                            contentPadding = PaddingValues(14.dp),
+                        ) {
+                            Text(
+                                text = "🚫 Este evento foi cancelado pelo organizador.",
+                                color = SociableTheme.ink,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
+                    if (!state.isCancelled) SociableButton(
                         text = when {
                             event.isSecret && state.rsvp.isGoing ->
                                 "Convite confirmado ✓ (toque para cancelar)"
@@ -259,6 +283,57 @@ fun EventDetailScreen(
                         onClick = onReviewsClick,
                         secondary = true,
                     )
+
+                    if (isOrganizer && !state.isCancelled) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "Você organiza este evento",
+                            color = SociableTheme.ink,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SociableButton(
+                            text = "Editar evento",
+                            onClick = onEditClick,
+                            secondary = true,
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        if (!confirmingCancel) {
+                            SociableButton(
+                                text = "Cancelar evento",
+                                onClick = { confirmingCancel = true },
+                                secondary = true,
+                            )
+                        } else {
+                            StickerBox(
+                                modifier = Modifier.fillMaxWidth(),
+                                fill = SociableTheme.accentSoft,
+                                radius = 14.dp,
+                                contentPadding = PaddingValues(14.dp),
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text(
+                                        text = "Cancelar o evento? Ele some do feed e do mapa e as pessoas confirmadas vão ver o aviso de cancelamento. Isso não dá para desfazer pelo app.",
+                                        color = SociableTheme.ink,
+                                        fontSize = 13.sp,
+                                    )
+                                    SociableButton(
+                                        text = "Sim, cancelar evento",
+                                        onClick = {
+                                            confirmingCancel = false
+                                            viewModel.onCancelEvent()
+                                        },
+                                        isLoading = state.isCancelling,
+                                    )
+                                    SociableButton(
+                                        text = "Voltar",
+                                        onClick = { confirmingCancel = false },
+                                        secondary = true,
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

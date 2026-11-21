@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 data class CreateEventUiState(
     val startAt: Instant,
@@ -27,8 +28,8 @@ data class CreateEventUiState(
     val category: EventCategory = EventCategory.PARTY,
     val venueName: String = "",
     val address: String = "",
-    val latitude: String = "-3.1190",
-    val longitude: String = "-60.0217",
+    val latitude: String = "",
+    val longitude: String = "",
     val isFree: Boolean = true,
     val isSecret: Boolean = false,
     val price: String = "",
@@ -46,7 +47,13 @@ data class CreateEventUiState(
     val periodError: ValidationError? = null,
     val isLoading: Boolean = false,
     val error: AppError? = null,
+    /** Id do evento criado ou salvo; a tela navega quando ele aparece. */
     val createdEventId: String? = null,
+    /** Diferente de nulo quando a tela está editando um evento existente. */
+    val editingEventId: String? = null,
+    val isLoadingEvent: Boolean = false,
+    /** Quem já confirmou presença: o limite de pessoas não pode ficar abaixo disso. */
+    val goingCount: Int = 0,
 )
 
 class CreateEventViewModel(
@@ -64,6 +71,53 @@ class CreateEventViewModel(
         )
     )
     val uiState: StateFlow<CreateEventUiState> = _uiState.asStateFlow()
+
+    /** Carrega um evento existente no formulário. Só o organizador pode editar. */
+    fun loadForEdit(eventId: String) {
+        if (_uiState.value.editingEventId == eventId) return
+        _uiState.update { it.copy(editingEventId = eventId, isLoadingEvent = true, error = null) }
+        viewModelScope.launch {
+            when (val result = eventRepository.getEvent(eventId)) {
+                is AppResult.Success -> {
+                    val event = result.data
+                    val currentUserId = authRepository.currentUser.value?.id
+                    if (event.organizerId != currentUserId) {
+                        _uiState.update {
+                            it.copy(isLoadingEvent = false, error = AppError.PERMISSION_DENIED)
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                title = event.title,
+                                description = event.description,
+                                category = event.category,
+                                venueName = event.venueName,
+                                address = event.address,
+                                latitude = String.format(Locale.US, "%.6f", event.latitude),
+                                longitude = String.format(Locale.US, "%.6f", event.longitude),
+                                startAt = event.startAt,
+                                endAt = event.endAt,
+                                isFree = event.isFree,
+                                isSecret = event.isSecret,
+                                price = event.price?.let(::formatPriceInput).orEmpty(),
+                                capacity = event.capacity?.toString().orEmpty(),
+                                imageUrl = event.imageUrl.orEmpty(),
+                                goingCount = event.goingCount,
+                                isLoadingEvent = false,
+                            )
+                        }
+                    }
+                }
+
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isLoadingEvent = false, error = result.error)
+                }
+            }
+        }
+    }
+
+    private fun formatPriceInput(price: Double): String =
+        if (price % 1.0 == 0.0) price.toLong().toString() else price.toString()
 
     fun onTitleChange(value: String) {
         _uiState.update { it.copy(title = value, titleError = null, error = null) }
@@ -85,12 +139,24 @@ class CreateEventViewModel(
         _uiState.update { it.copy(address = value, addressError = null, error = null) }
     }
 
-    fun onLatitudeChange(value: String) {
-        _uiState.update { it.copy(latitude = value, latitudeError = null, error = null) }
+    /** Preenche o endereço sugerido pelo mapa sem sobrescrever o que a pessoa já digitou. */
+    fun onAddressIfBlank(value: String) {
+        _uiState.update {
+            if (it.address.isBlank()) it.copy(address = value, addressError = null) else it
+        }
     }
 
-    fun onLongitudeChange(value: String) {
-        _uiState.update { it.copy(longitude = value, longitudeError = null, error = null) }
+    /** Ponto escolhido no mapa. Seis casas decimais dão precisão de cerca de 10 cm. */
+    fun onLocationPicked(latitude: Double, longitude: Double) {
+        _uiState.update {
+            it.copy(
+                latitude = String.format(Locale.US, "%.6f", latitude),
+                longitude = String.format(Locale.US, "%.6f", longitude),
+                latitudeError = null,
+                longitudeError = null,
+                error = null,
+            )
+        }
     }
 
     fun onStartShift(hours: Long) {
@@ -117,6 +183,8 @@ class CreateEventViewModel(
     }
 
     fun onSecretChange(isSecret: Boolean) {
+        // Um evento já publicado não vira segredinho (nem deixa de ser).
+        if (_uiState.value.editingEventId != null) return
         _uiState.update { it.copy(isSecret = isSecret, error = null) }
     }
 
@@ -145,7 +213,14 @@ class CreateEventViewModel(
             state.price.isBlank() -> ValidationError.REQUIRED
             else -> Validators.price(state.price)
         }
-        val capacityError = Validators.capacity(state.capacity)
+        val capacityError = Validators.capacity(state.capacity) ?: run {
+            val limit = state.capacity.trim().toIntOrNull()
+            if (state.editingEventId != null && limit != null && limit < state.goingCount) {
+                ValidationError.CAPACITY_BELOW_GOING
+            } else {
+                null
+            }
+        }
         val imageUrlError = Validators.imageUrl(state.imageUrl)
         val periodError = Validators.eventPeriod(state.startAt, state.endAt)
 
@@ -200,7 +275,13 @@ class CreateEventViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            when (val result = eventRepository.createEvent(draft)) {
+            val editingId = state.editingEventId
+            val result = if (editingId != null) {
+                eventRepository.updateEvent(editingId, draft)
+            } else {
+                eventRepository.createEvent(draft)
+            }
+            when (result) {
                 is AppResult.Success -> _uiState.update {
                     it.copy(isLoading = false, createdEventId = result.data.id)
                 }

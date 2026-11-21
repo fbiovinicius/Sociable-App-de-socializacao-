@@ -220,6 +220,20 @@ fun SociableNavHost(
             }
 
             composable(
+                route = Routes.EDIT_EVENT,
+                arguments = listOf(navArgument("eventId") { type = NavType.StringType }),
+            ) { entry ->
+                val eventId = entry.arguments?.getString("eventId").orEmpty()
+                val viewModel: CreateEventViewModel = koinViewModel()
+                CreateEventScreen(
+                    viewModel = viewModel,
+                    editEventId = eventId,
+                    onCreated = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(
                 route = Routes.EVENT_DETAIL,
                 arguments = listOf(navArgument("eventId") { type = NavType.StringType }),
             ) { entry ->
@@ -232,6 +246,7 @@ fun SociableNavHost(
                     onBack = { navController.popBackStack() },
                     onChatClick = { navController.navigate(Routes.chat(eventId)) },
                     onReviewsClick = { navController.navigate(Routes.reviews(eventId)) },
+                    onEditClick = { navController.navigate(Routes.editEvent(eventId)) },
                 )
             }
 

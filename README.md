@@ -54,6 +54,7 @@ Saber o que está acontecendo na cidade ainda é difícil:
 **Evento**
 - Detalhe com descrição, local, horário, preço, vagas e avaliações.
 - Confirmar/cancelar presença ("Eu vou!"); o local secreto só aparece para quem confirmou.
+- O organizador pode editar e cancelar o evento pelo detalhe. Evento cancelado sai do feed e do mapa e mostra um aviso para quem já o conhecia.
 - **Lembrete local**: ao confirmar presença, o app agenda um aviso 1 h antes do rolê
   (WorkManager + notificação local; funciona offline e sobrevive a reiniciar o aparelho).
 - Chat por evento e avaliações com estrelas.

@@ -8,6 +8,7 @@ import com.example.sociable.core.notifications.EventReminder
 import com.example.sociable.core.notifications.ReminderScheduler
 import com.example.sociable.core.toAppError
 import com.example.sociable.data.model.Event
+import com.example.sociable.data.model.EventStatus
 import com.example.sociable.data.model.RatingSummary
 import com.example.sociable.data.model.RsvpInfo
 import com.example.sociable.data.repository.AuthRepository
@@ -27,8 +28,11 @@ data class EventDetailUiState(
     val rating: RatingSummary = RatingSummary(),
     val isLoading: Boolean = true,
     val isTogglingRsvp: Boolean = false,
+    val isCancelling: Boolean = false,
     val error: AppError? = null,
-)
+) {
+    val isCancelled: Boolean get() = event?.status == EventStatus.CANCELLED
+}
 
 class EventDetailViewModel(
     private val eventId: String,
@@ -37,6 +41,8 @@ class EventDetailViewModel(
     private val authRepository: AuthRepository,
     private val reminderScheduler: ReminderScheduler,
 ) : ViewModel() {
+
+    val currentUserId: String? = authRepository.currentUser.value?.id
 
     private val _uiState = MutableStateFlow(EventDetailUiState())
     val uiState: StateFlow<EventDetailUiState> = _uiState.asStateFlow()
@@ -55,6 +61,10 @@ class EventDetailViewModel(
                     _uiState.update { it.copy(isLoading = false, error = throwable.toAppError()) }
                 }
                 .collect { (event, rsvp, rating) ->
+                    // Evento cancelado: o lembrete local não faz mais sentido.
+                    if (event?.status == EventStatus.CANCELLED) {
+                        reminderScheduler.cancel(eventId)
+                    }
                     _uiState.update {
                         it.copy(
                             event = event,
@@ -103,6 +113,27 @@ class EventDetailViewModel(
                 ),
             )
             !going -> reminderScheduler.cancel(eventId)
+        }
+    }
+
+    /** Só o organizador cancela; as regras do Firestore também garantem isso. */
+    fun onCancelEvent() {
+        val event = _uiState.value.event ?: return
+        if (event.organizerId != currentUserId) {
+            _uiState.update { it.copy(error = AppError.PERMISSION_DENIED) }
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCancelling = true, error = null) }
+            when (val result = eventRepository.cancelEvent(eventId)) {
+                is AppResult.Success -> {
+                    reminderScheduler.cancel(eventId)
+                    _uiState.update { it.copy(isCancelling = false) }
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isCancelling = false, error = result.error)
+                }
+            }
         }
     }
 

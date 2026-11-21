@@ -1,0 +1,811 @@
+diff --git a/README.md b/README.md
+index 85d8d0b..3c8f671 100644
+--- a/README.md
++++ b/README.md
+@@ -54,6 +54,7 @@ Saber o que está acontecendo na cidade ainda é difícil:
+ **Evento**
+ - Detalhe com descrição, local, horário, preço, vagas e avaliações.
+ - Confirmar/cancelar presença ("Eu vou!"); o local secreto só aparece para quem confirmou.
++- O organizador pode editar e cancelar o evento pelo detalhe. Evento cancelado sai do feed e do mapa e mostra um aviso para quem já o conhecia.
+ - **Lembrete local**: ao confirmar presença, o app agenda um aviso 1 h antes do rolê
+   (WorkManager + notificação local; funciona offline e sobrevive a reiniciar o aparelho).
+ - Chat por evento e avaliações com estrelas.
+diff --git a/app/src/main/java/com/example/sociable/core/validation/ValidationError.kt b/app/src/main/java/com/example/sociable/core/validation/ValidationError.kt
+index e8d4c17..4cc96eb 100644
+--- a/app/src/main/java/com/example/sociable/core/validation/ValidationError.kt
++++ b/app/src/main/java/com/example/sociable/core/validation/ValidationError.kt
+@@ -15,4 +15,5 @@ enum class ValidationError {
+     INVALID_RATING,
+     END_BEFORE_START,
+     INVALID_URL,
++    CAPACITY_BELOW_GOING,
+ }
+diff --git a/app/src/main/java/com/example/sociable/data/fake/FakeEventRepository.kt b/app/src/main/java/com/example/sociable/data/fake/FakeEventRepository.kt
+index e192670..e5d5ae7 100644
+--- a/app/src/main/java/com/example/sociable/data/fake/FakeEventRepository.kt
++++ b/app/src/main/java/com/example/sociable/data/fake/FakeEventRepository.kt
+@@ -67,6 +67,51 @@ class FakeEventRepository(
+         return AppResult.Success(event)
+     }
+ 
++    override suspend fun updateEvent(eventId: String, draft: EventDraft): AppResult<Event> {
++        delay(300)
++        val current = db.events.value.firstOrNull { it.id == eventId }
++            ?: return AppResult.Failure(AppError.NOT_FOUND)
++        if (current.organizerId != draft.organizerId) {
++            return AppResult.Failure(AppError.PERMISSION_DENIED)
++        }
++        if (current.status == EventStatus.CANCELLED) {
++            return AppResult.Failure(AppError.INVALID_INPUT)
++        }
++        if (draft.capacity != null && draft.capacity < current.goingCount) {
++            return AppResult.Failure(AppError.INVALID_INPUT)
++        }
++        val updated = current.copy(
++            title = draft.title.trim(),
++            description = draft.description.trim(),
++            category = draft.category,
++            venueName = draft.venueName.trim(),
++            address = draft.address.trim(),
++            latitude = draft.latitude,
++            longitude = draft.longitude,
++            startAt = draft.startAt,
++            endAt = draft.endAt,
++            isFree = draft.isFree,
++            price = if (draft.isFree) null else draft.price,
++            capacity = draft.capacity,
++            imageUrl = draft.imageUrl?.trim()?.takeIf { it.isNotBlank() },
++        )
++        db.events.update { events -> events.map { if (it.id == eventId) updated else it } }
++        return AppResult.Success(updated)
++    }
++
++    override suspend fun cancelEvent(eventId: String): AppResult<Unit> {
++        delay(250)
++        if (db.events.value.none { it.id == eventId }) {
++            return AppResult.Failure(AppError.NOT_FOUND)
++        }
++        db.events.update { events ->
++            events.map {
++                if (it.id == eventId) it.copy(status = EventStatus.CANCELLED) else it
++            }
++        }
++        return AppResult.Success(Unit)
++    }
++
+     override suspend fun setRsvp(
+         eventId: String,
+         userId: String,
+diff --git a/app/src/main/java/com/example/sociable/data/firebase/FirestoreEventMapper.kt b/app/src/main/java/com/example/sociable/data/firebase/FirestoreEventMapper.kt
+index 1e27721..e4c8a92 100644
+--- a/app/src/main/java/com/example/sociable/data/firebase/FirestoreEventMapper.kt
++++ b/app/src/main/java/com/example/sociable/data/firebase/FirestoreEventMapper.kt
+@@ -129,6 +129,29 @@ internal fun EventDraft.toPublicEvent(id: String, createdAt: Instant): Event = E
+     status = EventStatus.ACTIVE,
+ )
+ 
++/**
++ * Campos que o organizador pode alterar ao editar. Contador de presenças,
++ * organizador, data de criação, status e "segredinho" ficam de fora de propósito.
++ * [includeLocation] é falso em segredinho: o local real vai só para `private/location`.
++ */
++internal fun Event.toEditableFieldsMap(includeLocation: Boolean): Map<String, Any?> = buildMap {
++    put(EventFields.TITLE, title)
++    put(EventFields.DESCRIPTION, description)
++    put(EventFields.CATEGORY, category.name)
++    put(EventFields.START_AT, startAt.toTimestamp())
++    put(EventFields.END_AT, endAt.toTimestamp())
++    put(EventFields.IS_FREE, isFree)
++    put(EventFields.PRICE, price)
++    put(EventFields.CAPACITY, capacity)
++    put(EventFields.IMAGE_URL, imageUrl)
++    if (includeLocation) {
++        put(EventFields.VENUE_NAME, venueName)
++        put(EventFields.ADDRESS, address)
++        put(EventFields.LATITUDE, latitude)
++        put(EventFields.LONGITUDE, longitude)
++    }
++}
++
+ /** Documento privado com o local real, legível apenas por participantes. */
+ internal fun EventDraft.toPrivateLocationMap(): Map<String, Any?> = mapOf(
+     EventFields.VENUE_NAME to venueName.trim(),
+diff --git a/app/src/main/java/com/example/sociable/data/firebase/FirestoreEventRepository.kt b/app/src/main/java/com/example/sociable/data/firebase/FirestoreEventRepository.kt
+index 842c16d..7459331 100644
+--- a/app/src/main/java/com/example/sociable/data/firebase/FirestoreEventRepository.kt
++++ b/app/src/main/java/com/example/sociable/data/firebase/FirestoreEventRepository.kt
+@@ -112,6 +112,66 @@ class FirestoreEventRepository(
+         AppResult.Failure(exception.toFirebaseAppError(), exception)
+     }
+ 
++    override suspend fun updateEvent(eventId: String, draft: EventDraft): AppResult<Event> = try {
++        val eventReference = events.document(eventId)
++        val outcome = firestore.runTransaction { transaction ->
++            val snapshot = transaction.get(eventReference)
++            if (!snapshot.exists()) {
++                return@runTransaction UpdateOutcome.Missing
++            }
++            val data = snapshot.data.orEmpty()
++            if (data[EventFields.ORGANIZER_ID] != draft.organizerId) {
++                return@runTransaction UpdateOutcome.Forbidden
++            }
++            if (data[EventFields.STATUS] == EventStatus.CANCELLED.name) {
++                return@runTransaction UpdateOutcome.Invalid
++            }
++            val goingCount = (data[EventFields.GOING_COUNT] as? Number)?.toInt() ?: 0
++            if (draft.capacity != null && draft.capacity < goingCount) {
++                return@runTransaction UpdateOutcome.Invalid
++            }
++
++            // Segredinho continua segredinho: a condição vem do documento, não do formulário.
++            val isSecret = data[EventFields.IS_SECRET] as? Boolean ?: false
++            val edited = draft.copy(isSecret = isSecret)
++                .toPublicEvent(id = eventId, createdAt = timeProvider.now())
++
++            transaction.update(
++                eventReference,
++                edited.toEditableFieldsMap(includeLocation = !isSecret),
++            )
++            if (isSecret) {
++                transaction.set(
++                    eventReference.collection(SUBCOLLECTION_PRIVATE).document(PRIVATE_LOCATION_DOCUMENT),
++                    draft.toPrivateLocationMap(),
++                )
++            }
++            UpdateOutcome.Done
++        }.await()
++
++        when (outcome) {
++            UpdateOutcome.Done -> getEvent(eventId)
++            UpdateOutcome.Missing -> AppResult.Failure(AppError.NOT_FOUND)
++            UpdateOutcome.Forbidden -> AppResult.Failure(AppError.PERMISSION_DENIED)
++            UpdateOutcome.Invalid -> AppResult.Failure(AppError.INVALID_INPUT)
++        }
++    } catch (exception: CancellationException) {
++        throw exception
++    } catch (exception: Exception) {
++        AppResult.Failure(exception.toFirebaseAppError(), exception)
++    }
++
++    override suspend fun cancelEvent(eventId: String): AppResult<Unit> = try {
++        events.document(eventId)
++            .update(EventFields.STATUS, EventStatus.CANCELLED.name)
++            .await()
++        AppResult.Success(Unit)
++    } catch (exception: CancellationException) {
++        throw exception
++    } catch (exception: Exception) {
++        AppResult.Failure(exception.toFirebaseAppError(), exception)
++    }
++
+     override suspend fun setRsvp(
+         eventId: String,
+         userId: String,
+@@ -246,6 +306,8 @@ class FirestoreEventRepository(
+         FIELD_CHECK_IN_TOKEN to UUID.randomUUID().toString(),
+     )
+ 
++    private enum class UpdateOutcome { Done, Missing, Forbidden, Invalid }
++
+     private sealed interface RsvpTransactionResult {
+         data class Done(val info: RsvpInfo) : RsvpTransactionResult
+         data object Full : RsvpTransactionResult
+diff --git a/app/src/main/java/com/example/sociable/data/repository/EventRepository.kt b/app/src/main/java/com/example/sociable/data/repository/EventRepository.kt
+index add1e17..9a33ab7 100644
+--- a/app/src/main/java/com/example/sociable/data/repository/EventRepository.kt
++++ b/app/src/main/java/com/example/sociable/data/repository/EventRepository.kt
+@@ -28,6 +28,17 @@ interface EventRepository {
+ 
+     suspend fun createEvent(draft: EventDraft): AppResult<Event>
+ 
++    /**
++     * Edita um evento já publicado. Só o organizador pode; contador de presenças,
++     * organizador, data de criação e a condição de "segredinho" não mudam.
++     * Falha com INVALID_INPUT se o evento estiver cancelado ou se o limite de
++     * pessoas ficar abaixo de quem já confirmou presença.
++     */
++    suspend fun updateEvent(eventId: String, draft: EventDraft): AppResult<Event>
++
++    /** Cancela o evento (`status = CANCELLED`). Só o organizador pode. */
++    suspend fun cancelEvent(eventId: String): AppResult<Unit>
++
+     /** `going = true` confirma presença; `false` cancela. */
+     suspend fun setRsvp(eventId: String, userId: String, going: Boolean): AppResult<RsvpInfo>
+ 
+diff --git a/app/src/main/java/com/example/sociable/feature/events/CreateEventViewModel.kt b/app/src/main/java/com/example/sociable/feature/events/CreateEventViewModel.kt
+index 4251385..be4d11c 100644
+--- a/app/src/main/java/com/example/sociable/feature/events/CreateEventViewModel.kt
++++ b/app/src/main/java/com/example/sociable/feature/events/CreateEventViewModel.kt
+@@ -47,7 +47,13 @@ data class CreateEventUiState(
+     val periodError: ValidationError? = null,
+     val isLoading: Boolean = false,
+     val error: AppError? = null,
++    /** Id do evento criado ou salvo; a tela navega quando ele aparece. */
+     val createdEventId: String? = null,
++    /** Diferente de nulo quando a tela está editando um evento existente. */
++    val editingEventId: String? = null,
++    val isLoadingEvent: Boolean = false,
++    /** Quem já confirmou presença: o limite de pessoas não pode ficar abaixo disso. */
++    val goingCount: Int = 0,
+ )
+ 
+ class CreateEventViewModel(
+@@ -66,6 +72,53 @@ class CreateEventViewModel(
+     )
+     val uiState: StateFlow<CreateEventUiState> = _uiState.asStateFlow()
+ 
++    /** Carrega um evento existente no formulário. Só o organizador pode editar. */
++    fun loadForEdit(eventId: String) {
++        if (_uiState.value.editingEventId == eventId) return
++        _uiState.update { it.copy(editingEventId = eventId, isLoadingEvent = true, error = null) }
++        viewModelScope.launch {
++            when (val result = eventRepository.getEvent(eventId)) {
++                is AppResult.Success -> {
++                    val event = result.data
++                    val currentUserId = authRepository.currentUser.value?.id
++                    if (event.organizerId != currentUserId) {
++                        _uiState.update {
++                            it.copy(isLoadingEvent = false, error = AppError.PERMISSION_DENIED)
++                        }
++                    } else {
++                        _uiState.update {
++                            it.copy(
++                                title = event.title,
++                                description = event.description,
++                                category = event.category,
++                                venueName = event.venueName,
++                                address = event.address,
++                                latitude = String.format(Locale.US, "%.6f", event.latitude),
++                                longitude = String.format(Locale.US, "%.6f", event.longitude),
++                                startAt = event.startAt,
++                                endAt = event.endAt,
++                                isFree = event.isFree,
++                                isSecret = event.isSecret,
++                                price = event.price?.let(::formatPriceInput).orEmpty(),
++                                capacity = event.capacity?.toString().orEmpty(),
++                                imageUrl = event.imageUrl.orEmpty(),
++                                goingCount = event.goingCount,
++                                isLoadingEvent = false,
++                            )
++                        }
++                    }
++                }
++
++                is AppResult.Failure -> _uiState.update {
++                    it.copy(isLoadingEvent = false, error = result.error)
++                }
++            }
++        }
++    }
++
++    private fun formatPriceInput(price: Double): String =
++        if (price % 1.0 == 0.0) price.toLong().toString() else price.toString()
++
+     fun onTitleChange(value: String) {
+         _uiState.update { it.copy(title = value, titleError = null, error = null) }
+     }
+@@ -130,6 +183,8 @@ class CreateEventViewModel(
+     }
+ 
+     fun onSecretChange(isSecret: Boolean) {
++        // Um evento já publicado não vira segredinho (nem deixa de ser).
++        if (_uiState.value.editingEventId != null) return
+         _uiState.update { it.copy(isSecret = isSecret, error = null) }
+     }
+ 
+@@ -158,7 +213,14 @@ class CreateEventViewModel(
+             state.price.isBlank() -> ValidationError.REQUIRED
+             else -> Validators.price(state.price)
+         }
+-        val capacityError = Validators.capacity(state.capacity)
++        val capacityError = Validators.capacity(state.capacity) ?: run {
++            val limit = state.capacity.trim().toIntOrNull()
++            if (state.editingEventId != null && limit != null && limit < state.goingCount) {
++                ValidationError.CAPACITY_BELOW_GOING
++            } else {
++                null
++            }
++        }
+         val imageUrlError = Validators.imageUrl(state.imageUrl)
+         val periodError = Validators.eventPeriod(state.startAt, state.endAt)
+ 
+@@ -213,7 +275,13 @@ class CreateEventViewModel(
+ 
+         viewModelScope.launch {
+             _uiState.update { it.copy(isLoading = true, error = null) }
+-            when (val result = eventRepository.createEvent(draft)) {
++            val editingId = state.editingEventId
++            val result = if (editingId != null) {
++                eventRepository.updateEvent(editingId, draft)
++            } else {
++                eventRepository.createEvent(draft)
++            }
++            when (result) {
+                 is AppResult.Success -> _uiState.update {
+                     it.copy(isLoading = false, createdEventId = result.data.id)
+                 }
+diff --git a/app/src/main/java/com/example/sociable/feature/events/EventDetailViewModel.kt b/app/src/main/java/com/example/sociable/feature/events/EventDetailViewModel.kt
+index 1072b22..eadee20 100644
+--- a/app/src/main/java/com/example/sociable/feature/events/EventDetailViewModel.kt
++++ b/app/src/main/java/com/example/sociable/feature/events/EventDetailViewModel.kt
+@@ -8,6 +8,7 @@ import com.example.sociable.core.notifications.EventReminder
+ import com.example.sociable.core.notifications.ReminderScheduler
+ import com.example.sociable.core.toAppError
+ import com.example.sociable.data.model.Event
++import com.example.sociable.data.model.EventStatus
+ import com.example.sociable.data.model.RatingSummary
+ import com.example.sociable.data.model.RsvpInfo
+ import com.example.sociable.data.repository.AuthRepository
+@@ -27,8 +28,11 @@ data class EventDetailUiState(
+     val rating: RatingSummary = RatingSummary(),
+     val isLoading: Boolean = true,
+     val isTogglingRsvp: Boolean = false,
++    val isCancelling: Boolean = false,
+     val error: AppError? = null,
+-)
++) {
++    val isCancelled: Boolean get() = event?.status == EventStatus.CANCELLED
++}
+ 
+ class EventDetailViewModel(
+     private val eventId: String,
+@@ -38,6 +42,8 @@ class EventDetailViewModel(
+     private val reminderScheduler: ReminderScheduler,
+ ) : ViewModel() {
+ 
++    val currentUserId: String? = authRepository.currentUser.value?.id
++
+     private val _uiState = MutableStateFlow(EventDetailUiState())
+     val uiState: StateFlow<EventDetailUiState> = _uiState.asStateFlow()
+ 
+@@ -55,6 +61,10 @@ class EventDetailViewModel(
+                     _uiState.update { it.copy(isLoading = false, error = throwable.toAppError()) }
+                 }
+                 .collect { (event, rsvp, rating) ->
++                    // Evento cancelado: o lembrete local não faz mais sentido.
++                    if (event?.status == EventStatus.CANCELLED) {
++                        reminderScheduler.cancel(eventId)
++                    }
+                     _uiState.update {
+                         it.copy(
+                             event = event,
+@@ -106,6 +116,27 @@ class EventDetailViewModel(
+         }
+     }
+ 
++    /** Só o organizador cancela; as regras do Firestore também garantem isso. */
++    fun onCancelEvent() {
++        val event = _uiState.value.event ?: return
++        if (event.organizerId != currentUserId) {
++            _uiState.update { it.copy(error = AppError.PERMISSION_DENIED) }
++            return
++        }
++        viewModelScope.launch {
++            _uiState.update { it.copy(isCancelling = true, error = null) }
++            when (val result = eventRepository.cancelEvent(eventId)) {
++                is AppResult.Success -> {
++                    reminderScheduler.cancel(eventId)
++                    _uiState.update { it.copy(isCancelling = false) }
++                }
++                is AppResult.Failure -> _uiState.update {
++                    it.copy(isCancelling = false, error = result.error)
++                }
++            }
++        }
++    }
++
+     fun clearError() {
+         _uiState.update { it.copy(error = null) }
+     }
+diff --git a/app/src/main/java/com/example/sociable/navigation/Routes.kt b/app/src/main/java/com/example/sociable/navigation/Routes.kt
+index c05589b..241270f 100644
+--- a/app/src/main/java/com/example/sociable/navigation/Routes.kt
++++ b/app/src/main/java/com/example/sociable/navigation/Routes.kt
+@@ -12,11 +12,13 @@ object Routes {
+     const val MAP = "map"
+ 
+     const val CREATE_EVENT = "create_event?secret={secret}"
++    const val EDIT_EVENT = "event/{eventId}/edit"
+     const val EVENT_DETAIL = "event/{eventId}"
+     const val CHAT = "event/{eventId}/chat"
+     const val REVIEWS = "event/{eventId}/reviews"
+ 
+     fun eventDetail(eventId: String): String = "event/$eventId"
++    fun editEvent(eventId: String): String = "event/$eventId/edit"
+     fun chat(eventId: String): String = "event/$eventId/chat"
+     fun reviews(eventId: String): String = "event/$eventId/reviews"
+     fun createEvent(secret: Boolean = false): String = "create_event?secret=$secret"
+diff --git a/app/src/main/java/com/example/sociable/navigation/SociableNavHost.kt b/app/src/main/java/com/example/sociable/navigation/SociableNavHost.kt
+index 9cae342..8dcfa22 100644
+--- a/app/src/main/java/com/example/sociable/navigation/SociableNavHost.kt
++++ b/app/src/main/java/com/example/sociable/navigation/SociableNavHost.kt
+@@ -206,6 +206,20 @@ fun SociableNavHost(
+                 )
+             }
+ 
++            composable(
++                route = Routes.EDIT_EVENT,
++                arguments = listOf(navArgument("eventId") { type = NavType.StringType }),
++            ) { entry ->
++                val eventId = entry.arguments?.getString("eventId").orEmpty()
++                val viewModel: CreateEventViewModel = koinViewModel()
++                CreateEventScreen(
++                    viewModel = viewModel,
++                    editEventId = eventId,
++                    onCreated = { navController.popBackStack() },
++                    onBack = { navController.popBackStack() },
++                )
++            }
++
+             composable(
+                 route = Routes.EVENT_DETAIL,
+                 arguments = listOf(navArgument("eventId") { type = NavType.StringType }),
+@@ -219,6 +233,7 @@ fun SociableNavHost(
+                     onBack = { navController.popBackStack() },
+                     onChatClick = { navController.navigate(Routes.chat(eventId)) },
+                     onReviewsClick = { navController.navigate(Routes.reviews(eventId)) },
++                    onEditClick = { navController.navigate(Routes.editEvent(eventId)) },
+                 )
+             }
+ 
+diff --git a/app/src/main/java/com/example/sociable/ui/common/ErrorMessages.kt b/app/src/main/java/com/example/sociable/ui/common/ErrorMessages.kt
+index ee558ba..a8e86ae 100644
+--- a/app/src/main/java/com/example/sociable/ui/common/ErrorMessages.kt
++++ b/app/src/main/java/com/example/sociable/ui/common/ErrorMessages.kt
+@@ -34,4 +34,5 @@ fun ValidationError.message(): String = when (this) {
+     ValidationError.INVALID_RATING -> "Escolha uma nota de 1 a 5."
+     ValidationError.END_BEFORE_START -> "O fim deve ser depois do início."
+     ValidationError.INVALID_URL -> "Informe uma URL http(s) válida."
++    ValidationError.CAPACITY_BELOW_GOING -> "Já há mais pessoas confirmadas do que esse limite."
+ }
+diff --git a/app/src/main/java/com/example/sociable/ui/events/CreateEventScreen.kt b/app/src/main/java/com/example/sociable/ui/events/CreateEventScreen.kt
+index 02c5eec..b65b082 100644
+--- a/app/src/main/java/com/example/sociable/ui/events/CreateEventScreen.kt
++++ b/app/src/main/java/com/example/sociable/ui/events/CreateEventScreen.kt
+@@ -2,6 +2,7 @@ package com.example.sociable.ui.events
+ 
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Box
+ import androidx.compose.foundation.layout.Column
+ import androidx.compose.foundation.layout.ExperimentalLayoutApi
+ import androidx.compose.foundation.layout.FlowRow
+@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
+ import androidx.compose.foundation.layout.statusBarsPadding
+ import androidx.compose.foundation.rememberScrollState
+ import androidx.compose.foundation.verticalScroll
++import androidx.compose.material3.CircularProgressIndicator
+ import androidx.compose.material3.Text
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.LaunchedEffect
+@@ -25,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+ import androidx.compose.runtime.rememberCoroutineScope
+ import androidx.compose.runtime.setValue
++import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.platform.LocalContext
+ import androidx.compose.ui.text.font.FontWeight
+@@ -52,6 +55,7 @@ import kotlinx.coroutines.launch
+ fun CreateEventScreen(
+     viewModel: CreateEventViewModel,
+     startAsSecret: Boolean = false,
++    editEventId: String? = null,
+     onCreated: (String) -> Unit,
+     onBack: () -> Unit,
+ ) {
+@@ -81,8 +85,12 @@ fun CreateEventScreen(
+         )
+     }
+ 
+-    LaunchedEffect(startAsSecret) {
+-        if (startAsSecret) viewModel.onSecretChange(true)
++    LaunchedEffect(startAsSecret, editEventId) {
++        if (editEventId != null) {
++            viewModel.loadForEdit(editEventId)
++        } else if (startAsSecret) {
++            viewModel.onSecretChange(true)
++        }
+     }
+ 
+     LaunchedEffect(state.createdEventId) {
+@@ -101,7 +109,22 @@ fun CreateEventScreen(
+     ) {
+         BackLink(onBack)
+         Spacer(modifier = Modifier.height(8.dp))
+-        ScreenTitle("Criar evento", sub = "Conte o que vai rolar")
++        ScreenTitle(
++            if (editEventId != null) "Editar evento" else "Criar evento",
++            sub = if (editEventId != null) "Ajuste o que mudou" else "Conte o que vai rolar",
++        )
++
++        if (state.isLoadingEvent) {
++            Box(
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .padding(vertical = 48.dp),
++                contentAlignment = Alignment.Center,
++            ) {
++                CircularProgressIndicator(color = SociableTheme.ink)
++            }
++            return@Column
++        }
+ 
+         FormTextField(
+             value = state.title,
+@@ -272,7 +295,7 @@ fun CreateEventScreen(
+         Spacer(modifier = Modifier.height(20.dp))
+ 
+         SociableButton(
+-            text = "Publicar evento",
++            text = if (editEventId != null) "Salvar alterações" else "Publicar evento",
+             onClick = viewModel::onSubmit,
+             isLoading = state.isLoading,
+         )
+diff --git a/app/src/main/java/com/example/sociable/ui/events/EventDetailScreen.kt b/app/src/main/java/com/example/sociable/ui/events/EventDetailScreen.kt
+index 4ef6812..477ab5e 100644
+--- a/app/src/main/java/com/example/sociable/ui/events/EventDetailScreen.kt
++++ b/app/src/main/java/com/example/sociable/ui/events/EventDetailScreen.kt
+@@ -19,6 +19,10 @@ import androidx.compose.foundation.verticalScroll
+ import androidx.compose.material3.CircularProgressIndicator
+ import androidx.compose.material3.Text
+ import androidx.compose.runtime.Composable
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableStateOf
++import androidx.compose.runtime.remember
++import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.platform.LocalContext
+@@ -54,9 +58,12 @@ fun EventDetailScreen(
+     onBack: () -> Unit,
+     onChatClick: () -> Unit,
+     onReviewsClick: () -> Unit,
++    onEditClick: () -> Unit,
+ ) {
+     val state = viewModel.uiState.collectAsStateWithLifecycle().value
+     val event = state.event
++    val isOrganizer = event != null && event.organizerId == viewModel.currentUserId
++    var confirmingCancel by remember { mutableStateOf(false) }
+ 
+     // Lembrete local (bloco F1): no Android 13+ a notificação depende de
+     // permissão em runtime; pedimos no momento em que a pessoa confirma presença.
+@@ -230,7 +237,24 @@ fun EventDetailScreen(
+                         )
+                     }
+ 
+-                    SociableButton(
++                    if (state.isCancelled) {
++                        StickerBox(
++                            modifier = Modifier.fillMaxWidth(),
++                            fill = SociableTheme.accentSoft,
++                            radius = 14.dp,
++                            contentPadding = PaddingValues(14.dp),
++                        ) {
++                            Text(
++                                text = "🚫 Este evento foi cancelado pelo organizador.",
++                                color = SociableTheme.ink,
++                                fontSize = 14.sp,
++                                fontWeight = FontWeight.Bold,
++                            )
++                        }
++                        Spacer(modifier = Modifier.height(12.dp))
++                    }
++
++                    if (!state.isCancelled) SociableButton(
+                         text = when {
+                             event.isSecret && state.rsvp.isGoing ->
+                                 "Convite confirmado ✓ (toque para cancelar)"
+@@ -259,6 +283,57 @@ fun EventDetailScreen(
+                         onClick = onReviewsClick,
+                         secondary = true,
+                     )
++
++                    if (isOrganizer && !state.isCancelled) {
++                        Spacer(modifier = Modifier.height(24.dp))
++                        Text(
++                            text = "Você organiza este evento",
++                            color = SociableTheme.ink,
++                            fontWeight = FontWeight.Bold,
++                        )
++                        Spacer(modifier = Modifier.height(8.dp))
++                        SociableButton(
++                            text = "Editar evento",
++                            onClick = onEditClick,
++                            secondary = true,
++                        )
++                        Spacer(modifier = Modifier.height(12.dp))
++                        if (!confirmingCancel) {
++                            SociableButton(
++                                text = "Cancelar evento",
++                                onClick = { confirmingCancel = true },
++                                secondary = true,
++                            )
++                        } else {
++                            StickerBox(
++                                modifier = Modifier.fillMaxWidth(),
++                                fill = SociableTheme.accentSoft,
++                                radius = 14.dp,
++                                contentPadding = PaddingValues(14.dp),
++                            ) {
++                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
++                                    Text(
++                                        text = "Cancelar o evento? Ele some do feed e do mapa e as pessoas confirmadas vão ver o aviso de cancelamento. Isso não dá para desfazer pelo app.",
++                                        color = SociableTheme.ink,
++                                        fontSize = 13.sp,
++                                    )
++                                    SociableButton(
++                                        text = "Sim, cancelar evento",
++                                        onClick = {
++                                            confirmingCancel = false
++                                            viewModel.onCancelEvent()
++                                        },
++                                        isLoading = state.isCancelling,
++                                    )
++                                    SociableButton(
++                                        text = "Voltar",
++                                        onClick = { confirmingCancel = false },
++                                        secondary = true,
++                                    )
++                                }
++                            }
++                        }
++                    }
+                 }
+             }
+         }
+diff --git a/app/src/test/java/com/example/sociable/data/fake/FakeRepositoriesTest.kt b/app/src/test/java/com/example/sociable/data/fake/FakeRepositoriesTest.kt
+index 83c550b..db0b8b2 100644
+--- a/app/src/test/java/com/example/sociable/data/fake/FakeRepositoriesTest.kt
++++ b/app/src/test/java/com/example/sociable/data/fake/FakeRepositoriesTest.kt
+@@ -141,6 +141,90 @@ class FakeRepositoriesTest {
+         assertTrue(secrets.all { it.isSecret })
+     }
+ 
++    private fun draftFrom(event: com.example.sociable.data.model.Event, title: String = event.title, capacity: Int? = event.capacity) =
++        EventDraft(
++            title = title,
++            description = event.description,
++            category = event.category,
++            venueName = event.venueName,
++            address = event.address,
++            latitude = event.latitude,
++            longitude = event.longitude,
++            startAt = event.startAt,
++            endAt = event.endAt,
++            isFree = event.isFree,
++            price = event.price,
++            capacity = capacity,
++            imageUrl = event.imageUrl,
++            organizerId = event.organizerId,
++            organizerName = event.organizerName,
++        )
++
++    @Test
++    fun `organizador edita o evento e o contador de presencas e mantido`() = runTest {
++        val db = database()
++        val repository = FakeEventRepository(db, timeProvider)
++        val original = db.events.value.first { it.id == "event-1" }
++
++        val result = repository.updateEvent("event-1", draftFrom(original, title = "  Novo nome  "))
++
++        val updated = (result as AppResult.Success).data
++        assertEquals("Novo nome", updated.title)
++        assertEquals(original.goingCount, updated.goingCount)
++        assertEquals(original.organizerId, updated.organizerId)
++    }
++
++    @Test
++    fun `editar por quem nao organiza e recusado`() = runTest {
++        val db = database()
++        val repository = FakeEventRepository(db, timeProvider)
++        val original = db.events.value.first { it.id == "event-1" }
++
++        val result = repository.updateEvent(
++            "event-1",
++            draftFrom(original).copy(organizerId = "user-1"),
++        )
++
++        assertEquals(AppError.PERMISSION_DENIED, (result as AppResult.Failure).error)
++    }
++
++    @Test
++    fun `limite de pessoas abaixo dos confirmados e recusado`() = runTest {
++        val db = database()
++        val repository = FakeEventRepository(db, timeProvider)
++        val original = db.events.value.first { it.id == "event-1" }
++
++        val result = repository.updateEvent("event-1", draftFrom(original, capacity = 1))
++
++        assertEquals(AppError.INVALID_INPUT, (result as AppResult.Failure).error)
++    }
++
++    @Test
++    fun `cancelar evento tira do feed mas mantem o detalhe`() = runTest {
++        val db = database()
++        val repository = FakeEventRepository(db, timeProvider)
++
++        val result = repository.cancelEvent("event-1")
++
++        assertTrue(result is AppResult.Success)
++        val feed = repository.observeEvents(EventFilter()).first()
++        assertTrue(feed.none { it.id == "event-1" })
++        val detail = repository.observeEvent("event-1").first()
++        assertEquals(com.example.sociable.data.model.EventStatus.CANCELLED, detail?.status)
++    }
++
++    @Test
++    fun `evento cancelado nao pode mais ser editado`() = runTest {
++        val db = database()
++        val repository = FakeEventRepository(db, timeProvider)
++        val original = db.events.value.first { it.id == "event-1" }
++        repository.cancelEvent("event-1")
++
++        val result = repository.updateEvent("event-1", draftFrom(original))
++
++        assertEquals(AppError.INVALID_INPUT, (result as AppResult.Failure).error)
++    }
++
+     @Test
+     fun `avaliacao duplicada do mesmo usuario e recusada`() = runTest {
+         val db = database()
+diff --git a/app/src/test/java/com/example/sociable/data/firebase/FirestoreEventMapperTest.kt b/app/src/test/java/com/example/sociable/data/firebase/FirestoreEventMapperTest.kt
+index b27ecd9..6c58dd1 100644
+--- a/app/src/test/java/com/example/sociable/data/firebase/FirestoreEventMapperTest.kt
++++ b/app/src/test/java/com/example/sociable/data/firebase/FirestoreEventMapperTest.kt
+@@ -5,8 +5,10 @@ import com.example.sociable.data.model.EventCategory
+ import com.example.sociable.data.model.EventDraft
+ import com.example.sociable.data.model.EventStatus
+ import org.junit.Assert.assertEquals
++import org.junit.Assert.assertFalse
+ import org.junit.Assert.assertNotEquals
+ import org.junit.Assert.assertNull
++import org.junit.Assert.assertTrue
+ import org.junit.Test
+ import java.time.Instant
+ 
+@@ -121,4 +123,28 @@ class FirestoreEventMapperTest {
+         organizerName = "Carla Reis",
+         isSecret = isSecret,
+     )
++
++    @Test
++    fun `campos editaveis nao incluem contador, organizador nem status`() {
++        val keys = event.toEditableFieldsMap(includeLocation = true).keys
++
++        assertTrue(EventFields.TITLE in keys)
++        assertTrue(EventFields.LATITUDE in keys)
++        assertFalse(EventFields.GOING_COUNT in keys)
++        assertFalse(EventFields.ORGANIZER_ID in keys)
++        assertFalse(EventFields.CREATED_AT in keys)
++        assertFalse(EventFields.STATUS in keys)
++        assertFalse(EventFields.IS_SECRET in keys)
++    }
++
++    @Test
++    fun `em segredinho a edicao nao envia o local para o documento publico`() {
++        val keys = event.toEditableFieldsMap(includeLocation = false).keys
++
++        assertFalse(EventFields.VENUE_NAME in keys)
++        assertFalse(EventFields.ADDRESS in keys)
++        assertFalse(EventFields.LATITUDE in keys)
++        assertFalse(EventFields.LONGITUDE in keys)
++        assertTrue(EventFields.TITLE in keys)
++    }
+ }
+diff --git a/firestore.rules b/firestore.rules
+index 485a340..06ed658 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -91,6 +91,11 @@ service cloud.firestore {
+           && request.resource.data.organizerId == resource.data.organizerId
+           && request.resource.data.createdAt == resource.data.createdAt
+           && request.resource.data.goingCount == resource.data.goingCount
++          && request.resource.data.get('isSecret', false) == resource.data.get('isSecret', false)
++          && request.resource.data.status in ['ACTIVE', 'CANCELLED']
++          && request.resource.data.title is string
++          && request.resource.data.title.size() > 0
++          && request.resource.data.title.size() <= 120
+         )
+         ||
+         (

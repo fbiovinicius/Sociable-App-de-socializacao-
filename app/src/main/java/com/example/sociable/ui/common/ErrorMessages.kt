@@ -34,4 +34,5 @@ fun ValidationError.message(): String = when (this) {
     ValidationError.INVALID_RATING -> "Escolha uma nota de 1 a 5."
     ValidationError.END_BEFORE_START -> "O fim deve ser depois do início."
     ValidationError.INVALID_URL -> "Informe uma URL http(s) válida."
+    ValidationError.CAPACITY_BELOW_GOING -> "Já há mais pessoas confirmadas do que esse limite."
 }
