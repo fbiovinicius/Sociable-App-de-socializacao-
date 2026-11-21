@@ -32,6 +32,15 @@ import com.example.sociable.ui.common.SociableButton
 import com.example.sociable.ui.common.StickerBox
 import com.example.sociable.ui.common.SociableTextLink
 import com.example.sociable.ui.theme.SociableTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import java.time.LocalDate
+import com.example.sociable.ui.common.DateMask
+import com.example.sociable.ui.common.SociableTextField
+import com.example.sociable.ui.common.isAdult
+import com.example.sociable.ui.common.parseBirthDate
 
 @Composable
 fun RegisterScreen(
@@ -41,6 +50,20 @@ fun RegisterScreen(
     onBack: () -> Unit,
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
+
+
+    // Data de nascimento: por enquanto só na tela (o backend ainda não guarda).
+    // Mesmo assim ela bloqueia o botão "Criar conta" para menores de 18 anos.
+    var birthDigits by rememberSaveable { mutableStateOf("") }
+    val birthDate = parseBirthDate(birthDigits)
+    val birthError = when {
+        birthDigits.length < 8 -> null
+        birthDate == null || birthDate.isAfter(LocalDate.now()) ->
+            "Digite uma data válida (DD/MM/AAAA)."
+        !isAdult(birthDate) -> "O Sociable é só para maiores de 18 anos."
+        else -> null
+    }
+    val isAdultOk = birthDate != null && birthError == null
 
     LaunchedEffect(state.isRegistered) {
         if (state.isRegistered) onRegistered()
@@ -97,6 +120,19 @@ fun RegisterScreen(
             keyboardType = KeyboardType.Password,
             isPassword = true,
         )
+
+        SociableTextField(
+            label = "Data de nascimento",
+            value = birthDigits,
+            onChange = { birthDigits = it.filter(Char::isDigit).take(8) },
+            isError = birthError != null,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            visualTransformation = DateMask,
+            supportingText = birthError
+                ?: "Precisamos confirmar que você tem 18 anos ou mais. A data não aparece no seu perfil.",
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
         Spacer(modifier = Modifier.height(12.dp))
         FormTextField(
             value = state.confirmPassword,
@@ -113,6 +149,7 @@ fun RegisterScreen(
         SociableButton(
             text = "Criar conta",
             onClick = viewModel::onRegisterClick,
+            enabled = isAdultOk,
             isLoading = state.isLoading,
         )
         SociableTextLink(
