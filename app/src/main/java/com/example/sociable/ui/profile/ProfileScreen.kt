@@ -219,14 +219,7 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
         SectionTitle("Aparência")
-        Text(
-            text = "Claro, escuro ou como o seu celular. Muda na hora, sem fechar o app.",
-            color = SociableTheme.muted,
-            fontSize = 13.sp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 2.dp, bottom = 10.dp),
-        )
+        Spacer(modifier = Modifier.height(10.dp))
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
