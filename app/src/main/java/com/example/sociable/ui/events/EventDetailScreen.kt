@@ -116,7 +116,7 @@ fun EventDetailScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             SociableChip(
-                                text = if (event.isSecret) "🔒 Segredinho" else event.category.label,
+                                text = if (event.isSecret) "🔒 Chat da Cidade" else event.category.label,
                                 selected = true,
                                 onClick = {},
                             )

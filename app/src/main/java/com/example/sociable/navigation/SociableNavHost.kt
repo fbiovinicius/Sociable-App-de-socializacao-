@@ -54,7 +54,7 @@ private data class Tab(val route: String, val label: String, val icon: Int)
 private val tabs = listOf(
     Tab(Routes.EVENTS, "Descobrir", R.drawable.ic_pin_show),
     Tab(Routes.MAP, "Mapa", R.drawable.ic_pin_party),
-    Tab(Routes.SECRET, "Segredinhos", R.drawable.ic_pin_secret),
+    Tab(Routes.SECRET, "Chat da Cidade", R.drawable.ic_pin_secret),
     Tab(Routes.PROFILE, "Perfil", R.drawable.ic_pin_people),
 )
 

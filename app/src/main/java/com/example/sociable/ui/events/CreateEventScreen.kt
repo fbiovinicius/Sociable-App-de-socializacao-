@@ -49,7 +49,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CreateEventScreen(
+fun EventCard(
     viewModel: CreateEventViewModel,
     startAsSecret: Boolean = false,
     onCreated: (String) -> Unit,
@@ -135,7 +135,7 @@ fun CreateEventScreen(
                 )
             }
             SociableChip(
-                text = "🔒 Segredinho",
+                text = "🔒 Chat da Cidade",
                 selected = state.isSecret,
                 onClick = { viewModel.onSecretChange(!state.isSecret) },
             )

@@ -56,7 +56,7 @@ fun SecretScreen(
             .statusBarsPadding(),
     ) {
         Column(modifier = Modifier.padding(start = 20.dp, end = 24.dp, top = 16.dp)) {
-            ScreenTitle("Segredinhos", sub = "Rolês que não são divulgados por aí")
+            ScreenTitle("Chat da Cidade", sub = "Rolês que não são divulgados por aí")
         }
 
         ErrorText(
@@ -78,14 +78,14 @@ fun SecretScreen(
             state.events.isEmpty() -> {
                 Column(modifier = Modifier.weight(1f)) {
                     EmptyState(
-                        title = "Nenhum segredinho por enquanto",
+                        title = "Nada no Chat da Cidade por enquanto",
                         subtitle = "Crie um rolê com local revelado só aos convidados.",
                         modifier = Modifier.padding(top = 32.dp),
                     )
                 }
                 Box(modifier = Modifier.padding(24.dp)) {
                     SociableButton(
-                        text = "+ Criar segredinho",
+                        text = "+ Criar no Chat da Cidade",
                         onClick = onCreateClick,
                     )
                 }
