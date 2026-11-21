@@ -44,9 +44,17 @@ private val interestGroups: List<Pair<String, List<InterestLabel>>> = listOf(
         InterestLabel(Interest.PARTY, "🎉 Festas"),
         InterestLabel(Interest.FOOD, "🍽️ Gastronomia"),
         InterestLabel(Interest.GAMES, "🎲 Jogos"),
+        InterestLabel(Interest.CINEMA, "🎬 Cinema"),
+        InterestLabel(Interest.DANCE, "💃 Dança"),
+        InterestLabel(Interest.COFFEE, "☕ Café"),
+
     ),
     "Cultura" to listOf(
         InterestLabel(Interest.ART, "🎨 Arte e cultura"),
+        InterestLabel(Interest.CRAFTS, "🧶 Artesanato"),
+        InterestLabel(Interest.PHOTO, "📸 Fotografia"),
+        InterestLabel(Interest.THEATER, "🎭 Teatro"),
+        InterestLabel(Interest.READING, "📖 Leitura"),
         InterestLabel(Interest.ACADEMIC, "📚 Acadêmico"),
         InterestLabel(Interest.RELIGION, "🙏 Religioso"),
     ),
