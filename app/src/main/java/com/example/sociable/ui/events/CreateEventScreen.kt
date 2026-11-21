@@ -49,7 +49,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun EventCard(
+fun CreateEventScreen(
     viewModel: CreateEventViewModel,
     startAsSecret: Boolean = false,
     onCreated: (String) -> Unit,
