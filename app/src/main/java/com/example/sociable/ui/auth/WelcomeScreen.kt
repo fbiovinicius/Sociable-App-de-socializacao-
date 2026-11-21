@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.sociable.ui.common.SociableTextLink
 import androidx.compose.ui.unit.sp
 import com.example.sociable.ui.common.SociableButton
 import com.example.sociable.ui.common.SociableLogo
@@ -40,10 +42,10 @@ fun WelcomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             SociableLogo(size = 220.dp)
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Descubra o que está rolando em Manaus\ne vá com gente nova, sem compromisso",
-                color = SociableTheme.ink,
+                text = "Rolê bom é rolê com gente nova.",
+                color = SociableTheme.muted,
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center,
             )
