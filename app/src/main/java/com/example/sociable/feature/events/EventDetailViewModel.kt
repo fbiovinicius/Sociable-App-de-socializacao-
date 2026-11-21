@@ -53,7 +53,10 @@ class EventDetailViewModel(
             combine(
                 eventRepository.observeEvent(eventId),
                 eventRepository.observeRsvp(eventId, userId),
-                reviewRepository.observeRating(eventId),
+                // A média é um extra: se a leitura das avaliações falhar, o evento
+                // continua abrindo, só sem a nota.
+                reviewRepository.observeRating(eventId)
+                    .catch { emit(RatingSummary()) },
             ) { event, rsvp, rating ->
                 Triple(event, rsvp, rating)
             }

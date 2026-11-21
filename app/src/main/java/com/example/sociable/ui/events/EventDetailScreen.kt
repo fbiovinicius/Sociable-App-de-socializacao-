@@ -100,6 +100,14 @@ fun EventDetailScreen(
                 }
             }
 
+            event == null && state.error != null -> {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    BackLink(onBack)
+                    Spacer(modifier = Modifier.height(24.dp))
+                    ErrorText(error = state.error)
+                }
+            }
+
             event == null -> {
                 EmptyState(
                     title = "Evento não encontrado",

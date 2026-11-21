@@ -1,0 +1,35 @@
+diff --git a/app/src/main/java/com/example/sociable/feature/events/EventDetailViewModel.kt b/app/src/main/java/com/example/sociable/feature/events/EventDetailViewModel.kt
+index eadee20..ab0d75e 100644
+--- a/app/src/main/java/com/example/sociable/feature/events/EventDetailViewModel.kt
++++ b/app/src/main/java/com/example/sociable/feature/events/EventDetailViewModel.kt
+@@ -53,7 +53,10 @@ class EventDetailViewModel(
+             combine(
+                 eventRepository.observeEvent(eventId),
+                 eventRepository.observeRsvp(eventId, userId),
+-                reviewRepository.observeRating(eventId),
++                // A média é um extra: se a leitura das avaliações falhar, o evento
++                // continua abrindo, só sem a nota.
++                reviewRepository.observeRating(eventId)
++                    .catch { emit(RatingSummary()) },
+             ) { event, rsvp, rating ->
+                 Triple(event, rsvp, rating)
+             }
+diff --git a/app/src/main/java/com/example/sociable/ui/events/EventDetailScreen.kt b/app/src/main/java/com/example/sociable/ui/events/EventDetailScreen.kt
+index 477ab5e..f76ec24 100644
+--- a/app/src/main/java/com/example/sociable/ui/events/EventDetailScreen.kt
++++ b/app/src/main/java/com/example/sociable/ui/events/EventDetailScreen.kt
+@@ -100,6 +100,14 @@ fun EventDetailScreen(
+                 }
+             }
+ 
++            event == null && state.error != null -> {
++                Column(modifier = Modifier.padding(24.dp)) {
++                    BackLink(onBack)
++                    Spacer(modifier = Modifier.height(24.dp))
++                    ErrorText(error = state.error)
++                }
++            }
++
+             event == null -> {
+                 EmptyState(
+                     title = "Evento não encontrado",
