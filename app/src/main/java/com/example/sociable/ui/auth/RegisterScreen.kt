@@ -41,7 +41,13 @@ import com.example.sociable.ui.common.DateMask
 import com.example.sociable.ui.common.SociableTextField
 import com.example.sociable.ui.common.isAdult
 import com.example.sociable.ui.common.parseBirthDate
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.ui.text.font.FontWeight
+import com.example.sociable.ui.common.SociableChip
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RegisterScreen(
     viewModel: RegisterViewModel,
@@ -55,6 +61,7 @@ fun RegisterScreen(
     // Data de nascimento: por enquanto só na tela (o backend ainda não guarda).
     // Mesmo assim ela bloqueia o botão "Criar conta" para menores de 18 anos.
     var birthDigits by rememberSaveable { mutableStateOf("") }
+    var gender by rememberSaveable { mutableStateOf<String?>(null) }
     val birthDate = parseBirthDate(birthDigits)
     val birthError = when {
         birthDigits.length < 8 -> null
@@ -142,7 +149,26 @@ fun RegisterScreen(
             keyboardType = KeyboardType.Password,
             isPassword = true,
         )
-
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Sexo",
+            color = SociableTheme.ink,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            listOf("Feminino", "Masculino", "Não binário").forEach { option ->
+                SociableChip(
+                    text = option,
+                    selected = gender == option,
+                    onClick = { gender = option },
+                )
+            }
+        }
         ErrorText(error = state.error)
 
         Spacer(modifier = Modifier.height(24.dp))
