@@ -48,6 +48,7 @@ import com.example.sociable.ui.secret.SecretScreen
 import com.example.sociable.ui.theme.SociableTheme
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import androidx.compose.ui.unit.sp
 
 private data class Tab(val route: String, val label: String, val icon: Int)
 
@@ -89,7 +90,7 @@ fun SociableNavHost(
                                     modifier = Modifier.size(26.dp),
                                 )
                             },
-                            label = { Text(tab.label) },
+                            label = { Text(tab.label, maxLines = 1, fontSize = 11.sp) },
                             colors = NavigationBarItemDefaults.colors(
                                 indicatorColor = SociableTheme.chip,
                             ),
