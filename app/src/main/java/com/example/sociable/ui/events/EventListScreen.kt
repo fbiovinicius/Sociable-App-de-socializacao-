@@ -84,20 +84,20 @@ private fun EventListContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, top = 16.dp),
+                .padding(start = 20.dp, end = 20.dp, top = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Descobrir",
                     color = SociableTheme.ink,
-                    fontSize = 30.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
                 )
                 Text(
                     text = "O que tá rolando em Manaus?",
                     color = SociableTheme.muted,
-                    fontSize = 14.sp,
+                    fontSize = 12.sp,
                 )
             }
         }
@@ -110,7 +110,7 @@ private fun EventListContent(
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(horizontal = 20.dp, vertical = 8.dp),
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = SociableTheme.ink,
