@@ -243,13 +243,11 @@ private fun decodeSampledBitmap(bytes: ByteArray): ImageBitmap? {
     BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
-    var sampleSize = 1
-    while (
-        bounds.outWidth / (sampleSize * 2) >= MAX_DECODED_IMAGE_SIZE &&
-        bounds.outHeight / (sampleSize * 2) >= MAX_DECODED_IMAGE_SIZE
-    ) {
-        sampleSize *= 2
-    }
+    val sampleSize = calculateAvatarSampleSize(
+        width = bounds.outWidth,
+        height = bounds.outHeight,
+        maxDimension = MAX_DECODED_IMAGE_SIZE,
+    )
     val options = BitmapFactory.Options().apply {
         inSampleSize = sampleSize
         inPreferredConfig = Bitmap.Config.ARGB_8888

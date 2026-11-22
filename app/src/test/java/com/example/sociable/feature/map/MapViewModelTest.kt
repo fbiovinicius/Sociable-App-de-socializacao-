@@ -7,8 +7,11 @@ import com.example.sociable.data.fake.FakeAuthRepository
 import com.example.sociable.data.fake.FakeDatabase
 import com.example.sociable.data.fake.FakeEventRepository
 import com.example.sociable.data.fake.FakeReportRepository
+import com.example.sociable.data.model.Attendee
 import com.example.sociable.data.model.ReportReason
+import com.example.sociable.data.repository.EventRepository
 import com.example.sociable.data.repository.ReportRepository
+import java.io.IOException
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -18,6 +21,9 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -43,13 +49,15 @@ class MapViewModelTest {
 
     private suspend fun TestScope.viewModel(
         signedIn: Boolean = true,
+        eventRepositoryFactory: ((FakeDatabase) -> EventRepository)? = null,
         reportRepositoryFactory: ((FakeDatabase) -> ReportRepository)? = null,
     ): Triple<MapViewModel, FakeDatabase, FakeAuthRepository> {
         val db = FakeDatabase(timeProvider)
         val auth = FakeAuthRepository(db, timeProvider)
         if (signedIn) auth.signIn("demo@sociable.app", "123456")
         val viewModel = MapViewModel(
-            eventRepository = FakeEventRepository(db, timeProvider),
+            eventRepository = eventRepositoryFactory?.invoke(db)
+                ?: FakeEventRepository(db, timeProvider),
             reportRepository = reportRepositoryFactory?.invoke(db)
                 ?: FakeReportRepository(db, timeProvider),
             authRepository = auth,
@@ -99,6 +107,84 @@ class MapViewModelTest {
         val attendees = viewModel.uiState.value.attendees
         assertEquals(1, attendees.size)
         assertEquals("Ana Souza", attendees.first().name)
+    }
+
+    @Test
+    fun `troca automatica limpa os participantes do evento anterior`() = runTest(dispatcher) {
+        val (viewModel, db, _) = viewModel(
+            eventRepositoryFactory = { database ->
+                val fake = FakeEventRepository(database, timeProvider)
+                object : EventRepository by fake {
+                    override fun observeAttendees(eventId: String) = when (eventId) {
+                        "event-1" -> flowOf(
+                            listOf(Attendee(userId = "user-2", name = "Bruno Lima")),
+                        )
+                        else -> emptyFlow<List<Attendee>>()
+                    }
+                }
+            },
+        )
+        assertEquals("Bruno Lima", viewModel.uiState.value.attendees.single().name)
+
+        db.events.value = db.events.value
+            .filterNot { it.id == "event-1" }
+            .map { event ->
+                if (event.id == "event-2") {
+                    event.copy(startAt = now, endAt = now.plusSeconds(3_600))
+                } else {
+                    event
+                }
+            }
+        advanceUntilIdle()
+
+        assertEquals("event-2", viewModel.uiState.value.selectedEventId)
+        assertTrue(viewModel.uiState.value.attendees.isEmpty())
+        assertTrue(!viewModel.uiState.value.isLoadingAttendees)
+    }
+
+    @Test
+    fun `falha ao carregar participantes expoe o erro para a tela`() = runTest(dispatcher) {
+        val (viewModel, _, _) = viewModel(
+            eventRepositoryFactory = { database ->
+                val fake = FakeEventRepository(database, timeProvider)
+                object : EventRepository by fake {
+                    override fun observeAttendees(eventId: String) = flow<List<Attendee>> {
+                        throw IOException("sem rede")
+                    }
+                }
+            },
+        )
+
+        assertEquals(AppError.NETWORK, viewModel.uiState.value.attendeesError)
+        assertTrue(viewModel.uiState.value.attendees.isEmpty())
+        assertTrue(!viewModel.uiState.value.isLoadingAttendees)
+    }
+
+    @Test
+    fun `tocar novamente no mesmo pin repete a carga de participantes`() = runTest(dispatcher) {
+        var attempts = 0
+        val (viewModel, _, _) = viewModel(
+            eventRepositoryFactory = { database ->
+                val fake = FakeEventRepository(database, timeProvider)
+                object : EventRepository by fake {
+                    override fun observeAttendees(eventId: String) = flow<List<Attendee>> {
+                        attempts += 1
+                        if (attempts == 1) {
+                            throw IOException("sem rede")
+                        }
+                        emit(listOf(Attendee(userId = "user-1", name = "Ana Souza")))
+                    }
+                }
+            },
+        )
+        assertEquals(AppError.NETWORK, viewModel.uiState.value.attendeesError)
+
+        viewModel.onMarkerSelected("event-1")
+        advanceUntilIdle()
+
+        assertEquals(2, attempts)
+        assertEquals("Ana Souza", viewModel.uiState.value.attendees.single().name)
+        assertEquals(null, viewModel.uiState.value.attendeesError)
     }
 
     @Test

@@ -119,6 +119,11 @@ fun MapScreen(
     }
     val selected = visible.firstOrNull { it.eventId == state.selectedEventId }
         ?: visible.firstOrNull()
+    // Enquanto o efeito de seleção não executa, `selected` pode apontar para
+    // outro evento. Nesse intervalo, não reuse participantes nem erros do pin
+    // anterior.
+    val attendeesBelongToSelected = selected != null &&
+        selected.eventId == state.selectedEventId
 
     // Busca e filtros são locais à tela. Se o evento marcado deixar de aparecer,
     // seleciona o primeiro visível para manter cards, participantes e denúncia
@@ -381,7 +386,17 @@ fun MapScreen(
                     // Quem está no rolê: número de pessoas + prévia das fotos.
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (state.attendees.isNotEmpty() && selected.goingCount > 0) {
+                        if (attendeesBelongToSelected && state.isLoadingAttendees) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                color = SociableTheme.ink,
+                                strokeWidth = 2.dp,
+                            )
+                        } else if (
+                            attendeesBelongToSelected &&
+                            state.attendees.isNotEmpty() &&
+                            selected.goingCount > 0
+                        ) {
                             AttendeeAvatarStack(
                                 attendees = state.attendees,
                                 totalCount = selected.goingCount,
@@ -417,6 +432,9 @@ fun MapScreen(
                             }
                         }
                     }
+                    ErrorText(
+                        error = if (attendeesBelongToSelected) state.attendeesError else null,
+                    )
 
                     // Compartilhar e denunciar.
                     Spacer(modifier = Modifier.height(12.dp))

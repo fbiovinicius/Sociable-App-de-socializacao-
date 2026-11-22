@@ -11,6 +11,7 @@ import com.example.sociable.data.model.User
 import com.example.sociable.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CancellationException
@@ -115,24 +116,40 @@ class FirestoreUserRepository(
         photoUrl: String?,
     ) {
         try {
-            val attendees = firestore.collectionGroup(ATTENDEES)
-                .whereEqualTo(FieldPath.documentId(), userId)
-                .limit(ATTENDEE_SYNC_LIMIT)
-                .get()
-                .await()
-            if (attendees.isEmpty) return
+            var cursor: DocumentSnapshot? = null
+            while (true) {
+                val query = firestore.collectionGroup(ATTENDEES)
+                    .whereEqualTo(ATTENDEE_USER_ID, userId)
+                    .orderBy(FieldPath.documentId())
+                    .limit(ATTENDEE_SYNC_PAGE_SIZE)
 
-            val batch = firestore.batch()
-            attendees.documents.forEach { attendee ->
-                batch.update(
-                    attendee.reference,
-                    mapOf(
-                        "name" to name,
-                        "photoUrl" to photoUrl,
-                    ),
-                )
+                // `userId` é um campo real do participante; o id do documento
+                // seria o caminho completo em uma collection group. Ordenar pelo
+                // caminho completo torna a paginação estável e permite continuar
+                // depois do último documento da página anterior.
+                val after = cursor
+                val page = if (after == null) {
+                    query.get().await()
+                } else {
+                    query.startAfter(after).get().await()
+                }
+                if (page.isEmpty) return
+
+                val batch = firestore.batch()
+                page.documents.forEach { attendee ->
+                    batch.update(
+                        attendee.reference,
+                        mapOf(
+                            "name" to name,
+                            "photoUrl" to photoUrl,
+                        ),
+                    )
+                }
+                batch.commit().await()
+
+                if (page.size() < ATTENDEE_SYNC_PAGE_SIZE) return
+                cursor = page.documents.last()
             }
-            batch.commit().await()
         } catch (exception: CancellationException) {
             throw exception
         } catch (_: Exception) {
@@ -144,6 +161,7 @@ class FirestoreUserRepository(
     private companion object {
         const val USERS = "users"
         const val ATTENDEES = "attendees"
-        const val ATTENDEE_SYNC_LIMIT = 30L
+        const val ATTENDEE_USER_ID = "userId"
+        const val ATTENDEE_SYNC_PAGE_SIZE = 30L
     }
 }

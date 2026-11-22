@@ -139,8 +139,9 @@ events/{eventId}/reports/{userId}      # UMA denúncia por pessoa/evento
   eventId, reporterId, reason, comment, createdAt
 ```
 
-Sugestão de índices: `events` por `startAt`; combinados categoria + `startAt`; `isFree` + `startAt`.
-Para busca textual e "perto de mim", usar respectivamente Algolia/Typesense e geohash (`geofire-common`).
+Sugestão de índices: `events` por `startAt`; combinados categoria + `startAt`; `isFree` + `startAt`;
+`attendees` por `userId` + `__name__` para a sincronização paginada do perfil. Para busca textual e
+"perto de mim", usar respectivamente Algolia/Typesense e geohash (`geofire-common`).
 
 ## Regras de segurança (ponto de partida)
 
@@ -269,20 +270,42 @@ O Koin já injeta essas implementações. Os repositórios fake ficam só para o
   paginação, busca full-text (Algolia/Typesense) e geohash ficam para depois.
 - `setRsvp` roda em transação: valida capacidade, cria/remove `rsvps/{uid}`, atualiza
   `goingCount` e mantém `attendees/{uid}` em sincronia (nome e foto do perfil).
+- Quando nome ou foto mudam, o app percorre todas as páginas de `attendees/{uid}` para
+  reconciliar as prévias; o limite de 30 é apenas o tamanho de cada página.
 - Segredinhos gravam o local real em `events/{eventId}/private/location`. O documento público fica
   com "Local secreto" e coordenadas neutras; o repositório só mescla o local real para o
   organizador ou para quem tem RSVP.
 - Eventos cancelados (`status = CANCELLED`) continuam acessíveis pelo detalhe, mas não entram no
   feed nem no mapa.
 
-### Migração de RSVPs anteriores
+### Migração e rollout dos RSVPs anteriores
 
 A subcoleção `attendees` passou a ser criada na mesma transação do RSVP. Confirmações
 anteriores à publicação destas regras não têm esse documento e, por isso, não aparecem na
-prévia. Antes de publicar a feature em produção, rode um backfill com Admin SDK/Cloud Function
-para copiar `rsvps/{uid}` e os dados públicos de `users/{uid}` para
-`events/{eventId}/attendees/{uid}`. O backfill deve respeitar `goingCount` e a visibilidade
-restrita dos segredinhos.
+prévia.
+
+**Decisão de rollout:** manter a escrita de `rsvps/{uid}`, `goingCount` e `attendees/{uid}`
+atômica e falhar de forma fechada para clientes que não escrevem o participante público.
+Não relaxe as regras para aceitar um RSVP isolado: isso permitiria `goingCount` e a prévia
+divergirem. Em vez disso, publique o cliente corrigido, aplique uma **versão mínima do app**
+e só então publique as regras.
+
+Ordem recomendada:
+
+1. Publique uma versão do app que contenha a transação com `attendees/{uid}`.
+2. Imponha a versão mínima no canal de distribuição (Remote Config, loja ou atualização
+   obrigatória); clientes anteriores ao PR #23 não são compatíveis com as regras estritas.
+3. Rode um backfill idempotente com Admin SDK/Cloud Function para copiar cada
+   `rsvps/{uid}` e os dados públicos de `users/{uid}` para
+   `events/{eventId}/attendees/{uid}`. Preserve o `createdAt` do RSVP e reconcilie
+   `goingCount` com o número de RSVPs válidos.
+4. Publique `firestore.rules` e teste um primeiro RSVP em evento público e em segredinho.
+5. Monitore erros `PERMISSION_DENIED` e conclua o backfill antes de habilitar a prévia para
+   todo o público.
+
+O backfill deve respeitar a visibilidade restrita dos segredinhos. Como ele usa o Admin SDK,
+as regras do cliente não se aplicam, mas ele nunca deve criar participante para um RSVP que
+não exista.
 
 ### Publicando regras e índices
 
@@ -292,6 +315,15 @@ O projeto inclui `firebase.json`, `firestore.indexes.json` e `.firebaserc`. Com 
 npm install -g firebase-tools
 firebase login
 firebase deploy --only firestore:rules,firestore:indexes
+```
+
+As regras também têm testes executados no Firestore Emulator. Eles cobrem, entre outros
+casos, o primeiro RSVP em evento secreto e a rejeição de RSVP sem o participante público.
+Requer Node.js 20+, Java e o Firebase CLI:
+
+```powershell
+npm install --prefix tools/firestore-rules-test
+firebase emulators:exec --only firestore --project demo-sociable "node tools/firestore-rules-test/test-rules.js"
 ```
 
 Sem o CLI, cole `firestore.rules` em **Firestore Database → Regras** e crie o índice composto
@@ -314,10 +346,15 @@ o próprio RSVP e os eventos que organiza. O `goingCount` só pode mudar junto c
 correspondente, e a criação de RSVP exige que a mesma transação tenha incrementado o contador e
 criado o participante público.
 O documento público em `attendees` (nome e foto) é criado na mesma transação do RSVP e apagado
-quando a presença é cancelada. Em eventos secretos, a lista de participantes fica restrita ao
-organizador e a quem confirmou presença. As denúncias só podem ser criadas pelo cliente
-autenticado — a leitura fica com a moderação, via Admin SDK. Antes de produção, revise a leitura
-de perfis (o campo `email` ainda é visível para qualquer usuário autenticado).
+quando a presença é cancelada. Fotos de perfil e de participante precisam usar HTTPS. Em
+eventos secretos, a lista completa de participantes fica restrita ao organizador e a quem
+confirmou presença; a pessoa pode consultar somente o próprio documento, o que permite à
+primeira transação de RSVP verificar se ele já existe. Uma consulta à collection group
+`attendees` filtrada por `userId` também é liberada para a pessoa sincronizar o próprio
+perfil; a listagem completa continua bloqueada antes da confirmação. As denúncias só podem
+ser criadas pelo cliente autenticado — a leitura fica com a moderação, via Admin SDK. Antes
+de produção, revise a leitura de perfis (o campo `email` ainda está visível para qualquer
+usuário autenticado).
 
 ### Onboarding social
 

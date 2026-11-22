@@ -14,3 +14,5 @@ local.properties
 # Exceção: keystore de debug compartilhada pelo grupo (só assina builds de teste).
 !app/debug.keystore
 *.patch
+/tools/firestore-rules-test/node_modules/
+*-debug.log

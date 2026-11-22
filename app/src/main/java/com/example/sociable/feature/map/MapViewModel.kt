@@ -20,8 +20,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEmpty
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -54,9 +57,11 @@ data class MapUiState(
     /** Quem confirmou presença no evento selecionado (prévia com fotos). */
     val attendees: List<Attendee> = emptyList(),
     val isLoading: Boolean = true,
+    val isLoadingAttendees: Boolean = false,
     val isReporting: Boolean = false,
     val reportSent: Boolean = false,
     val error: AppError? = null,
+    val attendeesError: AppError? = null,
     val reportError: AppError? = null,
 )
 
@@ -76,6 +81,9 @@ class MapViewModel(
 
     /** Evento marcado no mapa; dirige a carga da prévia de participantes. */
     private val selectedEventId = MutableStateFlow<String?>(null)
+
+    /** Permite repetir a carga quando a pessoa toca novamente no mesmo pin. */
+    private val attendeeReloadVersion = MutableStateFlow(0L)
 
     init {
         viewModelScope.launch {
@@ -109,11 +117,10 @@ class MapViewModel(
                     val currentId = _uiState.value.selectedEventId
                         ?.takeIf { id -> markers.any { it.eventId == id } }
                         ?: markers.firstOrNull()?.eventId
-                    selectedEventId.value = currentId
+                    selectEvent(currentId)
                     _uiState.update {
                         it.copy(
                             markers = markers,
-                            selectedEventId = currentId,
                             isLoading = false,
                         )
                     }
@@ -123,29 +130,84 @@ class MapViewModel(
         // Prévia de participantes: só recarrega quando o evento marcado muda.
         viewModelScope.launch {
             selectedEventId
+                .combine(attendeeReloadVersion) { eventId, _ -> eventId }
                 .flatMapLatest { eventId ->
                     if (eventId == null) {
-                        flowOf(emptyList())
+                        flowOf(AttendeesLoad(eventId = null))
                     } else {
                         eventRepository.observeAttendees(eventId)
-                            .catch { emit(emptyList()) }
+                            .map { attendees -> AttendeesLoad(eventId, attendees) }
+                            .onEmpty { emit(AttendeesLoad(eventId = eventId)) }
+                            .catch { throwable ->
+                                emit(
+                                    AttendeesLoad(
+                                        eventId = eventId,
+                                        error = throwable.toAppError(),
+                                    ),
+                                )
+                            }
                     }
                 }
-                .collect { attendees ->
-                    _uiState.update { it.copy(attendees = attendees) }
+                .collect { load ->
+                    _uiState.update { state ->
+                        // Uma emissão antiga pode chegar durante a troca do pin.
+                        // O id garante que ela não substitua a prévia atual.
+                        if (state.selectedEventId != load.eventId) {
+                            state
+                        } else {
+                            state.copy(
+                                attendees = load.attendees,
+                                isLoadingAttendees = false,
+                                attendeesError = load.error,
+                            )
+                        }
+                    }
                 }
         }
     }
 
     fun onMarkerSelected(eventId: String?) {
-        selectedEventId.value = eventId
-        _uiState.update {
-            it.copy(
-                selectedEventId = eventId,
-                attendees = if (it.selectedEventId == eventId) it.attendees else emptyList(),
-            )
+        if (!selectEvent(eventId)) {
+            // StateFlow não reemite o mesmo valor. O contador reinicia a
+            // observação para permitir retry ao tocar novamente no pin.
+            _uiState.update {
+                it.copy(
+                    isLoadingAttendees = eventId != null,
+                    attendeesError = null,
+                )
+            }
+            attendeeReloadVersion.update { it + 1 }
         }
     }
+
+    /**
+     * Mantém o evento selecionado e a carga da prévia em sincronia. Ao trocar
+     * de evento, a lista anterior é removida imediatamente para não atribuir
+     * participantes ao evento errado.
+     *
+     * @return `true` quando o evento selecionado mudou.
+     */
+    private fun selectEvent(eventId: String?): Boolean {
+        val changed = _uiState.value.selectedEventId != eventId
+        if (changed) {
+            _uiState.update {
+                it.copy(
+                    selectedEventId = eventId,
+                    attendees = emptyList(),
+                    isLoadingAttendees = eventId != null,
+                    attendeesError = null,
+                )
+            }
+        }
+        selectedEventId.value = eventId
+        return changed
+    }
+
+    private data class AttendeesLoad(
+        val eventId: String?,
+        val attendees: List<Attendee> = emptyList(),
+        val error: AppError? = null,
+    )
 
     /** Denuncia o evento selecionado. O texto do aviso fica na camada de UI. */
     fun reportEvent(reason: ReportReason, comment: String) {

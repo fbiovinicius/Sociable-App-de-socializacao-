@@ -69,7 +69,11 @@ service cloud.firestore {
         && data.name.size() <= 120
         && (
           data.photoUrl == null
-          || (data.photoUrl is string && data.photoUrl.size() <= 500)
+          || (
+            data.photoUrl is string
+            && data.photoUrl.size() <= 500
+            && data.photoUrl.matches('(?i)https://.+')
+          )
         )
         && data.name == get(userPath(ownerId)).data.name
         && data.photoUrl == get(userPath(ownerId)).data.get('photoUrl', null);
@@ -86,7 +90,7 @@ service cloud.firestore {
           || (
             photoUrl is string
             && photoUrl.size() <= 500
-            && photoUrl.matches('https://.+')
+            && photoUrl.matches('(?i)https://.+')
           )
         );
     }
@@ -189,13 +193,18 @@ service cloud.firestore {
 
       // Prévia de participantes: documentos públicos com nome e foto de quem
       // confirmou presença. O documento é criado/apagado na mesma transação do
-      // RSVP (o token de check-in fica no rsvp, que é privado).
+      // RSVP (o token de check-in fica no rsvp, que é privado). A consulta da
+      // collection group filtrada pelo próprio userId tem uma regra recursiva
+      // no final deste arquivo.
       match /attendees/{userId} {
         // A lista é pública nos eventos comuns. Em segredinhos, apenas o
         // organizador e quem confirmou presença podem consultar participantes.
+        // A pessoa também pode consultar o próprio documento: a transação do
+        // primeiro RSVP precisa verificar se ele já existe antes de escrevê-lo.
         allow get: if signedIn()
           && (
-            eventData(eventId).get('isSecret', false) == false
+            request.auth.uid == userId
+            || eventData(eventId).get('isSecret', false) == false
             || isEventParticipant(eventId)
           );
 
@@ -312,6 +321,15 @@ service cloud.firestore {
 
         allow update, delete: if false;
       }
+    }
+
+    // A sincronização do perfil consulta a collection group `attendees`.
+    // O wildcard recursivo é necessário para essa consulta e continua
+    // limitado ao próprio `userId`; nenhuma escrita passa por esta regra.
+    match /{path=**}/attendees/{userId} {
+      allow list: if signedIn()
+        && request.query.limit <= 30
+        && resource.data.userId == request.auth.uid;
     }
   }
 }
