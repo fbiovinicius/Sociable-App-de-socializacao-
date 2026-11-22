@@ -21,6 +21,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.example.sociable.R
 import com.example.sociable.feature.auth.LoginViewModel
 import com.example.sociable.feature.auth.RegisterViewModel
@@ -237,6 +238,14 @@ fun SociableNavHost(
             composable(
                 route = Routes.EVENT_DETAIL,
                 arguments = listOf(navArgument("eventId") { type = NavType.StringType }),
+                deepLinks = listOf(
+                    navDeepLink {
+                        uriPattern = "sociable://event/{eventId}"
+                    },
+                    navDeepLink {
+                        uriPattern = "https://sociable.app/event/{eventId}"
+                    },
+                ),
             ) { entry ->
                 val eventId = entry.arguments?.getString("eventId").orEmpty()
                 val viewModel: EventDetailViewModel = koinViewModel(
