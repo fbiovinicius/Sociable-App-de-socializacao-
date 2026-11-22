@@ -31,6 +31,17 @@ interface EventRepository {
 
     suspend fun createEvent(draft: EventDraft): AppResult<Event>
 
+    /**
+     * Edita um evento já publicado. Só o organizador pode; contador de presenças,
+     * organizador, data de criação e a condição de "segredinho" não mudam.
+     * Falha com INVALID_INPUT se o evento estiver cancelado ou se o limite de
+     * pessoas ficar abaixo de quem já confirmou presença.
+     */
+    suspend fun updateEvent(eventId: String, draft: EventDraft): AppResult<Event>
+
+    /** Cancela o evento (`status = CANCELLED`). Só o organizador pode. */
+    suspend fun cancelEvent(eventId: String): AppResult<Unit>
+
     /** `going = true` confirma presença; `false` cancela. */
     suspend fun setRsvp(eventId: String, userId: String, going: Boolean): AppResult<RsvpInfo>
 

@@ -120,6 +120,66 @@ class FirestoreEventRepository(
         AppResult.Failure(exception.toFirebaseAppError(), exception)
     }
 
+    override suspend fun updateEvent(eventId: String, draft: EventDraft): AppResult<Event> = try {
+        val eventReference = events.document(eventId)
+        val outcome = firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(eventReference)
+            if (!snapshot.exists()) {
+                return@runTransaction UpdateOutcome.Missing
+            }
+            val data = snapshot.data.orEmpty()
+            if (data[EventFields.ORGANIZER_ID] != draft.organizerId) {
+                return@runTransaction UpdateOutcome.Forbidden
+            }
+            if (data[EventFields.STATUS] == EventStatus.CANCELLED.name) {
+                return@runTransaction UpdateOutcome.Invalid
+            }
+            val goingCount = (data[EventFields.GOING_COUNT] as? Number)?.toInt() ?: 0
+            if (draft.capacity != null && draft.capacity < goingCount) {
+                return@runTransaction UpdateOutcome.Invalid
+            }
+
+            // Segredinho continua segredinho: a condição vem do documento, não do formulário.
+            val isSecret = data[EventFields.IS_SECRET] as? Boolean ?: false
+            val edited = draft.copy(isSecret = isSecret)
+                .toPublicEvent(id = eventId, createdAt = timeProvider.now())
+
+            transaction.update(
+                eventReference,
+                edited.toEditableFieldsMap(includeLocation = !isSecret),
+            )
+            if (isSecret) {
+                transaction.set(
+                    eventReference.collection(SUBCOLLECTION_PRIVATE).document(PRIVATE_LOCATION_DOCUMENT),
+                    draft.toPrivateLocationMap(),
+                )
+            }
+            UpdateOutcome.Done
+        }.await()
+
+        when (outcome) {
+            UpdateOutcome.Done -> getEvent(eventId)
+            UpdateOutcome.Missing -> AppResult.Failure(AppError.NOT_FOUND)
+            UpdateOutcome.Forbidden -> AppResult.Failure(AppError.PERMISSION_DENIED)
+            UpdateOutcome.Invalid -> AppResult.Failure(AppError.INVALID_INPUT)
+        }
+    } catch (exception: CancellationException) {
+        throw exception
+    } catch (exception: Exception) {
+        AppResult.Failure(exception.toFirebaseAppError(), exception)
+    }
+
+    override suspend fun cancelEvent(eventId: String): AppResult<Unit> = try {
+        events.document(eventId)
+            .update(EventFields.STATUS, EventStatus.CANCELLED.name)
+            .await()
+        AppResult.Success(Unit)
+    } catch (exception: CancellationException) {
+        throw exception
+    } catch (exception: Exception) {
+        AppResult.Failure(exception.toFirebaseAppError(), exception)
+    }
+
     override suspend fun setRsvp(
         eventId: String,
         userId: String,
@@ -322,6 +382,8 @@ class FirestoreEventRepository(
         FIELD_CHECKED_IN to false,
         FIELD_CHECK_IN_TOKEN to UUID.randomUUID().toString(),
     )
+
+    private enum class UpdateOutcome { Done, Missing, Forbidden, Invalid }
 
     private sealed interface RsvpTransactionResult {
         data class Done(val info: RsvpInfo) : RsvpTransactionResult

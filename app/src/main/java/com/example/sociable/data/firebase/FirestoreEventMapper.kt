@@ -156,6 +156,29 @@ internal fun EventDraft.toPublicEvent(id: String, createdAt: Instant): Event = E
     status = EventStatus.ACTIVE,
 )
 
+/**
+ * Campos que o organizador pode alterar ao editar. Contador de presenças,
+ * organizador, data de criação, status e "segredinho" ficam de fora de propósito.
+ * [includeLocation] é falso em segredinho: o local real vai só para `private/location`.
+ */
+internal fun Event.toEditableFieldsMap(includeLocation: Boolean): Map<String, Any?> = buildMap {
+    put(EventFields.TITLE, title)
+    put(EventFields.DESCRIPTION, description)
+    put(EventFields.CATEGORY, category.name)
+    put(EventFields.START_AT, startAt.toTimestamp())
+    put(EventFields.END_AT, endAt.toTimestamp())
+    put(EventFields.IS_FREE, isFree)
+    put(EventFields.PRICE, price)
+    put(EventFields.CAPACITY, capacity)
+    put(EventFields.IMAGE_URL, imageUrl)
+    if (includeLocation) {
+        put(EventFields.VENUE_NAME, venueName)
+        put(EventFields.ADDRESS, address)
+        put(EventFields.LATITUDE, latitude)
+        put(EventFields.LONGITUDE, longitude)
+    }
+}
+
 /** Documento privado com o local real, legível apenas por participantes. */
 internal fun EventDraft.toPrivateLocationMap(): Map<String, Any?> = mapOf(
     EventFields.VENUE_NAME to venueName.trim(),

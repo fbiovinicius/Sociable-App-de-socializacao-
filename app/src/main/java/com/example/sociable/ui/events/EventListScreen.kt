@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -29,12 +30,14 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.sociable.core.location.distanceKm
 import com.example.sociable.data.model.DateFilter
 import com.example.sociable.data.model.EventCategory
 import com.example.sociable.feature.events.EventListViewModel
 import com.example.sociable.ui.common.EmptyState
 import com.example.sociable.ui.common.ErrorText
 import com.example.sociable.ui.common.SociableChip
+import com.example.sociable.ui.map.rememberUserLocation
 import com.example.sociable.ui.theme.SociableTheme
 
 @Composable
@@ -44,6 +47,8 @@ fun EventListScreen(
     onCreateClick: () -> Unit,
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
+    // Pede a localização uma vez para mostrar a distância em cada card.
+    val userLocation by rememberUserLocation(requestPermission = true)
 
     Column(
         modifier = Modifier
@@ -161,9 +166,14 @@ fun EventListScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     items(items = state.events, key = { it.id }) { event ->
+                        // Segredinho tem coordenada neutra no feed: sem distância.
+                        val distance = userLocation?.takeIf { !event.isSecret }?.let { here ->
+                            distanceKm(here.latitude, here.longitude, event.latitude, event.longitude)
+                        }
                         EventCard(
                             event = event,
                             onClick = { onEventClick(event.id) },
+                            distanceKm = distance,
                         )
                     }
                 }

@@ -145,6 +145,90 @@ class FakeRepositoriesTest {
         assertTrue(secrets.all { it.isSecret })
     }
 
+    private fun draftFrom(event: com.example.sociable.data.model.Event, title: String = event.title, capacity: Int? = event.capacity) =
+        EventDraft(
+            title = title,
+            description = event.description,
+            category = event.category,
+            venueName = event.venueName,
+            address = event.address,
+            latitude = event.latitude,
+            longitude = event.longitude,
+            startAt = event.startAt,
+            endAt = event.endAt,
+            isFree = event.isFree,
+            price = event.price,
+            capacity = capacity,
+            imageUrl = event.imageUrl,
+            organizerId = event.organizerId,
+            organizerName = event.organizerName,
+        )
+
+    @Test
+    fun `organizador edita o evento e o contador de presencas e mantido`() = runTest {
+        val db = database()
+        val repository = FakeEventRepository(db, timeProvider)
+        val original = db.events.value.first { it.id == "event-1" }
+
+        val result = repository.updateEvent("event-1", draftFrom(original, title = "  Novo nome  "))
+
+        val updated = (result as AppResult.Success).data
+        assertEquals("Novo nome", updated.title)
+        assertEquals(original.goingCount, updated.goingCount)
+        assertEquals(original.organizerId, updated.organizerId)
+    }
+
+    @Test
+    fun `editar por quem nao organiza e recusado`() = runTest {
+        val db = database()
+        val repository = FakeEventRepository(db, timeProvider)
+        val original = db.events.value.first { it.id == "event-1" }
+
+        val result = repository.updateEvent(
+            "event-1",
+            draftFrom(original).copy(organizerId = "user-1"),
+        )
+
+        assertEquals(AppError.PERMISSION_DENIED, (result as AppResult.Failure).error)
+    }
+
+    @Test
+    fun `limite de pessoas abaixo dos confirmados e recusado`() = runTest {
+        val db = database()
+        val repository = FakeEventRepository(db, timeProvider)
+        val original = db.events.value.first { it.id == "event-1" }
+
+        val result = repository.updateEvent("event-1", draftFrom(original, capacity = 1))
+
+        assertEquals(AppError.INVALID_INPUT, (result as AppResult.Failure).error)
+    }
+
+    @Test
+    fun `cancelar evento tira do feed mas mantem o detalhe`() = runTest {
+        val db = database()
+        val repository = FakeEventRepository(db, timeProvider)
+
+        val result = repository.cancelEvent("event-1")
+
+        assertTrue(result is AppResult.Success)
+        val feed = repository.observeEvents(EventFilter()).first()
+        assertTrue(feed.none { it.id == "event-1" })
+        val detail = repository.observeEvent("event-1").first()
+        assertEquals(com.example.sociable.data.model.EventStatus.CANCELLED, detail?.status)
+    }
+
+    @Test
+    fun `evento cancelado nao pode mais ser editado`() = runTest {
+        val db = database()
+        val repository = FakeEventRepository(db, timeProvider)
+        val original = db.events.value.first { it.id == "event-1" }
+        repository.cancelEvent("event-1")
+
+        val result = repository.updateEvent("event-1", draftFrom(original))
+
+        assertEquals(AppError.INVALID_INPUT, (result as AppResult.Failure).error)
+    }
+
     @Test
     fun `avaliacao duplicada do mesmo usuario e recusada`() = runTest {
         val db = database()

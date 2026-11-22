@@ -5,8 +5,10 @@ import com.example.sociable.data.model.EventCategory
 import com.example.sociable.data.model.EventDraft
 import com.example.sociable.data.model.EventStatus
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
 
@@ -121,4 +123,28 @@ class FirestoreEventMapperTest {
         organizerName = "Carla Reis",
         isSecret = isSecret,
     )
+
+    @Test
+    fun `campos editaveis nao incluem contador, organizador nem status`() {
+        val keys = event.toEditableFieldsMap(includeLocation = true).keys
+
+        assertTrue(EventFields.TITLE in keys)
+        assertTrue(EventFields.LATITUDE in keys)
+        assertFalse(EventFields.GOING_COUNT in keys)
+        assertFalse(EventFields.ORGANIZER_ID in keys)
+        assertFalse(EventFields.CREATED_AT in keys)
+        assertFalse(EventFields.STATUS in keys)
+        assertFalse(EventFields.IS_SECRET in keys)
+    }
+
+    @Test
+    fun `em segredinho a edicao nao envia o local para o documento publico`() {
+        val keys = event.toEditableFieldsMap(includeLocation = false).keys
+
+        assertFalse(EventFields.VENUE_NAME in keys)
+        assertFalse(EventFields.ADDRESS in keys)
+        assertFalse(EventFields.LATITUDE in keys)
+        assertFalse(EventFields.LONGITUDE in keys)
+        assertTrue(EventFields.TITLE in keys)
+    }
 }

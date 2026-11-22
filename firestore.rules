@@ -132,6 +132,11 @@ service cloud.firestore {
           && request.resource.data.organizerId == resource.data.organizerId
           && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.goingCount == resource.data.goingCount
+          && request.resource.data.get('isSecret', false) == resource.data.get('isSecret', false)
+          && request.resource.data.status in ['ACTIVE', 'CANCELLED']
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 120
         )
         ||
         (
