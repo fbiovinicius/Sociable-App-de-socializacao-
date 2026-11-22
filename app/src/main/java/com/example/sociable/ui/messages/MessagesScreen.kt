@@ -1,6 +1,7 @@
 package com.example.sociable.ui.messages
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +45,9 @@ fun MessagesScreen(
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
 
+    // Filtro selecionado: 0=Todos, 1=Não lidos, 2=Comunidades
+    val selectedFilter = remember { mutableStateOf(0) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -61,39 +67,31 @@ fun MessagesScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Abas simples: Conversas | Comunidades
+        // Filtros: Todos | Não lidos | Comunidades
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "Conversas",
-                    color = SociableTheme.accent,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "Comunidades",
-                    color = SociableTheme.muted,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            MessagesFilterChip(
+                text = "Todos",
+                selected = selectedFilter.value == 0,
+                onClick = { selectedFilter.value = 0 },
+            )
+            MessagesFilterChip(
+                text = "Não lidos",
+                selected = selectedFilter.value == 1,
+                onClick = { selectedFilter.value = 1 },
+            )
+            MessagesFilterChip(
+                text = "Comunidades",
+                selected = selectedFilter.value == 2,
+                onClick = {
+                    selectedFilter.value = 2
+                    onCommunityClick()
+                },
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -106,6 +104,16 @@ fun MessagesScreen(
                 ) {
                     CircularProgressIndicator(color = SociableTheme.ink)
                 }
+            }
+
+            // Comunidades é navegação para outra tela
+            selectedFilter.value == 2 -> {
+                // Nada aqui, o onCommunityClick já navega
+                EmptyState(
+                    title = "Comunidades",
+                    subtitle = "Toque na aba acima para ver suas comunidades.",
+                    modifier = Modifier.padding(top = 48.dp),
+                )
             }
 
             state.conversations.isEmpty() -> {
@@ -139,6 +147,33 @@ fun MessagesScreen(
             text = "Criar comunidade",
             onClick = onCreateCommunity,
             secondary = true,
+            modifier = Modifier.padding(horizontal = 24.dp),
+        )
+    }
+}
+
+@Composable
+fun MessagesFilterChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(36.dp)
+            .clickable(onClick = onClick)
+            .background(
+                if (selected) SociableTheme.accent else SociableTheme.chip,
+                androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = if (selected) SociableTheme.onAccent else SociableTheme.ink,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }
@@ -151,9 +186,9 @@ fun ConversationRow(
     StickerBox(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 6.dp),
         fill = SociableTheme.surface,
-        radius = 18.dp,
+        radius = 16.dp,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
         onClick = onClick,
     ) {
