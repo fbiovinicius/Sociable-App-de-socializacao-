@@ -169,4 +169,49 @@ class CreateEventViewModelTest {
 
         assertNull(vm.uiState.value.periodError)
     }
+
+    @Test
+    fun `carregar para editar preenche o formulario e a duracao do evento`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        val ownEvent = FakeDatabase(timeProvider).events.value.first { it.organizerId == "user-1" }
+
+        viewModel.loadForEdit(ownEvent.id)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(ownEvent.id, state.editingEventId)
+        assertEquals(ownEvent.title, state.title)
+        assertEquals(ownEvent.startAt, state.startAt)
+        assertEquals(ownEvent.endAt, state.endAt)
+        assertEquals(
+            java.time.Duration.between(ownEvent.startAt, ownEvent.endAt).toMinutes().toInt(),
+            state.durationMinutes,
+        )
+        assertFalse(state.isEndCustom)
+        assertFalse(state.isLoadingEvent)
+    }
+
+    @Test
+    fun `editar evento de outra pessoa e recusado`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        val foreignEvent = FakeDatabase(timeProvider).events.value.first { it.organizerId != "user-1" }
+
+        viewModel.loadForEdit(foreignEvent.id)
+        advanceUntilIdle()
+
+        assertEquals(com.example.sociable.core.AppError.PERMISSION_DENIED, viewModel.uiState.value.error)
+        assertEquals("", viewModel.uiState.value.title)
+    }
+
+    @Test
+    fun `evento aberto para edicao nao vira segredinho`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        val ownEvent = FakeDatabase(timeProvider).events.value.first { it.organizerId == "user-1" && !it.isSecret }
+
+        viewModel.loadForEdit(ownEvent.id)
+        advanceUntilIdle()
+        viewModel.onSecretChange(true)
+
+        assertFalse(viewModel.uiState.value.isSecret)
+    }
 }
