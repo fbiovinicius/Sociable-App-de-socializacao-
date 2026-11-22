@@ -6,12 +6,25 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
-// A chave do Google Maps fica em local.properties (já ignorado pelo Git):
-//   MAPS_API_KEY=sua_chave_aqui
-val mapsApiKey: String = Properties().apply {
-    val file = rootProject.file("local.properties")
-    if (file.exists()) file.inputStream().use { load(it) }
-}.getProperty("MAPS_API_KEY", "")
+// Chave do Google Maps. A ordem de busca é:
+//   1. local.properties (ignorado pelo Git): sobrescreve a chave só na sua máquina;
+//   2. gradle.properties (vai para o Git): a chave compartilhada do grupo.
+// A chave é restrita por pacote + SHA-1 + Maps SDK no Google Cloud, então pode ir no repositório.
+val mapsApiKey: String = (
+    Properties().apply {
+        val file = rootProject.file("local.properties")
+        if (file.exists()) file.inputStream().use { load(it) }
+    }.getProperty("MAPS_API_KEY")
+        ?: providers.gradleProperty("MAPS_API_KEY").orNull
+        ?: ""
+    ).trim()
+
+if (mapsApiKey.isBlank()) {
+    logger.warn(
+        "ATENÇÃO: MAPS_API_KEY não encontrada. O app roda, mas o mapa fica em branco. " +
+            "Veja a seção Google Maps do README.",
+    )
+}
 
 android {
     namespace = "com.example.sociable"
@@ -29,6 +42,18 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+    }
+
+    // Keystore de debug compartilhada (app/debug.keystore): todo mundo assina o app de teste com a
+    // mesma chave, então o mesmo SHA-1 vale para o Maps e para o Firebase em qualquer máquina.
+    // Só serve para testes: a assinatura de release (Play Store) nunca vai para o Git.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {

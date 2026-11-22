@@ -11,4 +11,6 @@ local.properties
 .cxx
 *.jks
 *.keystore
+# Exceção: keystore de debug compartilhada pelo grupo (só assina builds de teste).
+!app/debug.keystore
 *.patch
