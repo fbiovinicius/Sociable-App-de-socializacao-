@@ -309,7 +309,6 @@ fun CommunityCard(
                     text = community.description,
                     color = SociableTheme.muted,
                     fontSize = 13.sp,
-                    maxLines = 2,
                     modifier = androidx.compose.ui.Modifier.padding(top = 4.dp),
                 )
                 Row(

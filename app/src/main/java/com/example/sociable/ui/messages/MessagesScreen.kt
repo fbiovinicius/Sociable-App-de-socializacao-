@@ -111,9 +111,19 @@ fun MessagesScreen(
                 // Nada aqui, o onCommunityClick já navega
                 EmptyState(
                     title = "Comunidades",
-                    subtitle = "Toque na aba acima para ver suas comunidades.",
+                    subtitle = "Toque no chip acima para ver suas comunidades.",
                     modifier = Modifier.padding(top = 48.dp),
                 )
+            }
+
+            // Não lidos - enquanto não implementado, mostra lista vazia
+            selectedFilter.value == 1 -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 24.dp),
+                ) {
+                    // Lista vazia - funcionalidade será implementada quando houver suporte backend
+                }
             }
 
             state.conversations.isEmpty() -> {
@@ -202,7 +212,6 @@ fun ConversationRow(
                     color = SociableTheme.ink,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1,
                 )
                 Text(
                     text = "${event.categoryLabel} · ${formatEventDay(event.startAt)}",
@@ -221,7 +230,6 @@ fun ConversationRow(
                     text = event.address.take(30).ifBlank { event.venueName },
                     color = SociableTheme.muted,
                     fontSize = 12.sp,
-                    maxLines = 1,
                 )
             }
         }
