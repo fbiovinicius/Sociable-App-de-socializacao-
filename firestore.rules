@@ -11,8 +11,16 @@ service cloud.firestore {
       return /databases/$(database)/documents/events/$(eventId);
     }
 
+    function userPath(userId) {
+      return /databases/$(database)/documents/users/$(userId);
+    }
+
     function ownRsvpPath(eventId) {
       return /databases/$(database)/documents/events/$(eventId)/rsvps/$(request.auth.uid);
+    }
+
+    function attendeePath(eventId, ownerId) {
+      return /databases/$(database)/documents/events/$(eventId)/attendees/$(ownerId);
     }
 
     function eventExists(eventId) {
@@ -54,6 +62,35 @@ service cloud.firestore {
         .affectedKeys().hasOnly(['goingCount']);
     }
 
+    function validAttendeeFields(data, ownerId) {
+      return data.keys().hasOnly(['userId', 'name', 'photoUrl', 'createdAt'])
+        && data.keys().hasAll(['userId', 'name', 'photoUrl', 'createdAt'])
+        && data.name is string
+        && data.name.size() <= 120
+        && (
+          data.photoUrl == null
+          || (data.photoUrl is string && data.photoUrl.size() <= 500)
+        )
+        && data.name == get(userPath(ownerId)).data.name
+        && data.photoUrl == get(userPath(ownerId)).data.get('photoUrl', null);
+    }
+
+    function validProfileFields(data) {
+      let name = data.get('name', '');
+      let photoUrl = data.get('photoUrl', null);
+      return name is string
+        && name.size() >= 2
+        && name.size() <= 60
+        && (
+          photoUrl == null
+          || (
+            photoUrl is string
+            && photoUrl.size() <= 500
+            && photoUrl.matches('https://.+')
+          )
+        );
+    }
+
     function goingCountMatchesOwnRsvp(eventId) {
       let delta = request.resource.data.goingCount - resource.data.goingCount;
       return (delta == 1 && existsAfter(ownRsvpPath(eventId)))
@@ -63,12 +100,16 @@ service cloud.firestore {
     match /users/{userId} {
       // Perfis são visíveis para usuários autenticados (nome, foto, bio).
       allow read: if signedIn();
-      allow create: if signedIn() && request.auth.uid == userId;
-      // E-mail e data de criação são imutáveis pelo cliente.
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && validProfileFields(request.resource.data);
+      // E-mail e data de criação são imutáveis pelo cliente. Nome e foto também
+      // são validados para impedir URLs perigosas na prévia de participantes.
       allow update: if signedIn()
         && request.auth.uid == userId
         && request.resource.data.email == resource.data.email
-        && request.resource.data.createdAt == resource.data.createdAt;
+        && request.resource.data.createdAt == resource.data.createdAt
+        && validProfileFields(request.resource.data);
       allow delete: if signedIn() && request.auth.uid == userId;
     }
 
@@ -124,7 +165,8 @@ service cloud.firestore {
             || eventGoingCount(eventId) < eventCapacity(eventId)
           )
           && getAfter(eventPath(eventId)).data.get('goingCount', 0)
-            == eventGoingCount(eventId) + 1;
+            == eventGoingCount(eventId) + 1
+          && existsAfter(attendeePath(eventId, userId));
 
         // Check-in é feito pelo organizador.
         allow update: if signedIn()
@@ -135,13 +177,97 @@ service cloud.firestore {
         allow delete: if signedIn()
           && request.auth.uid == userId
           && getAfter(eventPath(eventId)).data.get('goingCount', 0)
-            == eventGoingCount(eventId) - 1;
+            == eventGoingCount(eventId) - 1
+          && !existsAfter(attendeePath(eventId, userId));
       }
 
       // Local real de um segredinho: só organizador e quem confirmou presença.
       match /private/{documentId} {
         allow read: if isEventParticipant(eventId);
         allow write: if isEventOrganizer(eventId) || isEventOrganizerAfterWrite(eventId);
+      }
+
+      // Prévia de participantes: documentos públicos com nome e foto de quem
+      // confirmou presença. O documento é criado/apagado na mesma transação do
+      // RSVP (o token de check-in fica no rsvp, que é privado).
+      match /attendees/{userId} {
+        // A lista é pública nos eventos comuns. Em segredinhos, apenas o
+        // organizador e quem confirmou presença podem consultar participantes.
+        allow get: if signedIn()
+          && (
+            eventData(eventId).get('isSecret', false) == false
+            || isEventParticipant(eventId)
+          );
+
+        allow list: if signedIn()
+          && (
+            eventData(eventId).get('isSecret', false) == false
+            || isEventParticipant(eventId)
+          )
+          && request.query.limit <= 30;
+
+        allow create: if signedIn()
+          && request.auth.uid == userId
+          && request.resource.data.userId == userId
+          && validAttendeeFields(request.resource.data, userId)
+          && request.resource.data.createdAt == request.time
+          && existsAfter(ownRsvpPath(eventId));
+
+        allow update: if signedIn()
+          && request.auth.uid == userId
+          && resource.data.userId == userId
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.diff(resource.data)
+            .affectedKeys().hasOnly(['name', 'photoUrl'])
+          && validAttendeeFields(request.resource.data, userId)
+          && existsAfter(ownRsvpPath(eventId));
+
+        allow delete: if signedIn()
+          && request.auth.uid == userId
+          && !existsAfter(ownRsvpPath(eventId));
+      }
+
+      // Denúncias do evento: uma por pessoa. O cliente só cria e consulta o
+      // próprio registro; listagem e alterações ficam com a moderação.
+      match /reports/{reporterId} {
+        allow get: if signedIn() && request.auth.uid == reporterId;
+
+        allow create: if signedIn()
+          && request.auth.uid == reporterId
+          && request.resource.data.keys().hasOnly([
+            'eventId',
+            'reporterId',
+            'reason',
+            'comment',
+            'createdAt'
+          ])
+          && request.resource.data.keys().hasAll([
+            'eventId',
+            'reporterId',
+            'reason',
+            'comment',
+            'createdAt'
+          ])
+          && request.resource.data.reporterId == reporterId
+          && request.resource.data.eventId is string
+          && request.resource.data.eventId == eventId
+          && eventId.size() > 0
+          && eventId.size() <= 120
+          && eventExists(eventId)
+          && request.resource.data.reason is string
+          && request.resource.data.reason in [
+            'INAPPROPRIATE_CONTENT',
+            'SPAM_OR_SCAM',
+            'FAKE_EVENT',
+            'WRONG_LOCATION',
+            'OTHER'
+          ]
+          && request.resource.data.comment is string
+          && request.resource.data.comment.size() <= 500
+          && request.resource.data.createdAt == request.time;
+
+        allow list, update, delete: if false;
       }
 
       // Chat: só organizador e quem confirmou presença leem e enviam.

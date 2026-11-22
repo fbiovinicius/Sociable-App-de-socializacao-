@@ -36,7 +36,7 @@ deve ser substituído pela implementação real:
 single<EventRepository> { FakeEventRepository(get(), get()) }
 
 // Depois
-single<EventRepository> { FirestoreEventRepository(Firebase.firestore, get()) }
+single<EventRepository> { FirestoreEventRepository(get(), get(), get()) }
 ```
 
 Nenhum ViewModel ou tela precisa mudar. Mantenha os fakes e o `FakeDatabase` para os testes unitários.
@@ -79,10 +79,19 @@ Mapeamento sugerido de exceções:
   devem ocultar `venueName`/`address` de quem não tem RSVP. Veja a observação nas regras de segurança.
 - `setRsvp(eventId, userId, going)` → transação:
   1. ler `events/{eventId}`;
-  2. ler `events/{eventId}/rsvps/{userId}`;
-  3. se `going` e `goingCount >= capacity`, devolver `AppError.EVENT_FULL`;
-  4. criar/remover o documento de RSVP e atualizar `goingCount` com `FieldValue.increment(±1)`.
+  2. ler `events/{eventId}/rsvps/{userId}` e `attendees/{userId}`;
+  3. ler `users/{userId}` para montar a prévia pública;
+  4. se `going` e `goingCount >= capacity`, devolver `AppError.EVENT_FULL`;
+  5. criar/remover RSVP, participante público e `goingCount` na mesma transação.
 - `observeRsvp(eventId, userId)` → combinar evento (capacidade/contador) com o documento de RSVP.
+- `observeAttendees(eventId)` → listener em `attendees`, limitado à amostra usada pela prévia do mapa.
+
+### ReportRepository
+
+- `reportEvent(eventId, reporterId, reason, comment)` → cria um documento em
+  `events/{eventId}/reports/{reporterId}` com `createdAt` do servidor. O id é determinístico,
+  então reenvios são idempotentes. O cliente não consegue listar, alterar ou apagar denúncias;
+  a moderação usa o Admin SDK.
 
 ### ChatRepository
 
@@ -117,11 +126,17 @@ events/{eventId}/private/location   # só eventos isSecret = true
 events/{eventId}/rsvps/{userId}
   createdAt
 
+events/{eventId}/attendees/{userId}   # prévia pública de quem confirmou presença
+  userId, name, photoUrl, createdAt
+
 events/{eventId}/messages/{messageId}
   authorId, authorName, text, sentAt
 
 events/{eventId}/reviews/{userId}
   rating, comment, authorName, createdAt
+
+events/{eventId}/reports/{userId}      # UMA denúncia por pessoa/evento
+  eventId, reporterId, reason, comment, createdAt
 ```
 
 Sugestão de índices: `events` por `startAt`; combinados categoria + `startAt`; `isFree` + `startAt`.
@@ -252,12 +267,22 @@ O Koin já injeta essas implementações. Os repositórios fake ficam só para o
 - A consulta do feed busca `status == ACTIVE` e `endAt >= agora`, ordenada por `endAt`, com limite
   de 200 documentos. Texto, categoria, data e "só grátis/só segredinhos" são filtrados em memória;
   paginação, busca full-text (Algolia/Typesense) e geohash ficam para depois.
-- `setRsvp` roda em transação: valida capacidade, cria/remove `rsvps/{uid}` e atualiza `goingCount`.
+- `setRsvp` roda em transação: valida capacidade, cria/remove `rsvps/{uid}`, atualiza
+  `goingCount` e mantém `attendees/{uid}` em sincronia (nome e foto do perfil).
 - Segredinhos gravam o local real em `events/{eventId}/private/location`. O documento público fica
   com "Local secreto" e coordenadas neutras; o repositório só mescla o local real para o
   organizador ou para quem tem RSVP.
 - Eventos cancelados (`status = CANCELLED`) continuam acessíveis pelo detalhe, mas não entram no
   feed nem no mapa.
+
+### Migração de RSVPs anteriores
+
+A subcoleção `attendees` passou a ser criada na mesma transação do RSVP. Confirmações
+anteriores à publicação destas regras não têm esse documento e, por isso, não aparecem na
+prévia. Antes de publicar a feature em produção, rode um backfill com Admin SDK/Cloud Function
+para copiar `rsvps/{uid}` e os dados públicos de `users/{uid}` para
+`events/{eventId}/attendees/{uid}`. O backfill deve respeitar `goingCount` e a visibilidade
+restrita dos segredinhos.
 
 ### Publicando regras e índices
 
@@ -282,12 +307,17 @@ O projeto usa `kotlinx-coroutines-play-services` para aguardar Tasks do Firebase
 
 ### Regras do Firestore
 
-O arquivo `firestore.rules` na raiz cobre `users`, `events`, `rsvps` e o local privado dos
-segredinhos. Usuários autenticados leem eventos e perfis; cada pessoa só altera o próprio perfil,
+O arquivo `firestore.rules` na raiz cobre `users`, `events`, `rsvps`, a prévia pública de
+participantes (`attendees`), o local privado dos segredinhos e a coleção de denúncias (`reports`).
+Usuários autenticados leem eventos e perfis; cada pessoa só altera o próprio perfil,
 o próprio RSVP e os eventos que organiza. O `goingCount` só pode mudar junto com o RSVP
-correspondente, e a criação de RSVP exige que a mesma transação tenha incrementado o contador.
-Antes de produção, revise a leitura de perfis (o campo `email` ainda é visível para qualquer
-usuário autenticado).
+correspondente, e a criação de RSVP exige que a mesma transação tenha incrementado o contador e
+criado o participante público.
+O documento público em `attendees` (nome e foto) é criado na mesma transação do RSVP e apagado
+quando a presença é cancelada. Em eventos secretos, a lista de participantes fica restrita ao
+organizador e a quem confirmou presença. As denúncias só podem ser criadas pelo cliente
+autenticado — a leitura fica com a moderação, via Admin SDK. Antes de produção, revise a leitura
+de perfis (o campo `email` ainda é visível para qualquer usuário autenticado).
 
 ### Onboarding social
 

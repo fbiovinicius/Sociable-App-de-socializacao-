@@ -22,12 +22,14 @@ object Validators {
     const val MESSAGE_MAX = 500
     const val REVIEW_COMMENT_MAX = 300
     const val IMAGE_URL_MAX = 500
+    const val PHOTO_URL_MAX = 500
     const val MAX_PRICE = 100_000.0
     const val MAX_CAPACITY = 10_000
     const val MAX_EVENT_DURATION_MINUTES = 7L * 24 * 60
 
     private val EMAIL_REGEX = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
     private val URL_REGEX = Regex("^https?://.+", RegexOption.IGNORE_CASE)
+    private val PHOTO_URL_REGEX = Regex("^https://.+", RegexOption.IGNORE_CASE)
 
     fun name(value: String): ValidationError? {
         val trimmed = value.trim()
@@ -165,6 +167,17 @@ object Validators {
         return when {
             trimmed.length > IMAGE_URL_MAX -> ValidationError.TOO_LONG
             !URL_REGEX.matches(trimmed) -> ValidationError.INVALID_URL
+            else -> null
+        }
+    }
+
+    /** Foto de perfil: exige HTTPS para evitar tráfego inseguro e URLs locais. */
+    fun photoUrl(value: String): ValidationError? {
+        val trimmed = value.trim()
+        if (trimmed.isEmpty()) return null
+        return when {
+            trimmed.length > PHOTO_URL_MAX -> ValidationError.TOO_LONG
+            !PHOTO_URL_REGEX.matches(trimmed) -> ValidationError.INVALID_URL
             else -> null
         }
     }

@@ -117,7 +117,7 @@ fun ProfileScreen(
         FormTextField(
             value = state.photoUrl,
             onValueChange = viewModel::onPhotoUrlChange,
-            label = "URL da foto (opcional)",
+            label = "URL da foto HTTPS (opcional)",
             error = state.photoUrlError,
             keyboardType = KeyboardType.Uri,
         )

@@ -1,6 +1,7 @@
 package com.example.sociable.data.repository
 
 import com.example.sociable.core.AppResult
+import com.example.sociable.data.model.Attendee
 import com.example.sociable.data.model.Event
 import com.example.sociable.data.model.EventDraft
 import com.example.sociable.data.model.EventFilter
@@ -14,9 +15,11 @@ import kotlinx.coroutines.flow.Flow
  *  - observeEvents   -> collection `events` + filtros; listener em tempo real.
  *                       Para "perto de mim", usar geohash (geofire-common).
  *  - observeEvent    -> doc `events/{eventId}`.
- *  - setRsvp         -> subcoleção `events/{eventId}/rsvps/{userId}` e
- *                       `FieldValue.increment(±1)` em `events/{eventId}.goingCount`
- *                       dentro de uma transação (para respeitar `capacity`).
+ *  - setRsvp         -> subcoleção `events/{eventId}/rsvps/{userId}`, o documento
+ *                       público em `attendees/{userId}` e `goingCount` são
+ *                       gravados na mesma transação (para respeitar `capacity`).
+ *  - observeAttendees-> subcoleção pública `events/{eventId}/attendees/{userId}`
+ *                       com nome e foto de quem confirmou presença (prévia do mapa).
  */
 interface EventRepository {
 
@@ -43,4 +46,10 @@ interface EventRepository {
     suspend fun setRsvp(eventId: String, userId: String, going: Boolean): AppResult<RsvpInfo>
 
     fun observeRsvp(eventId: String, userId: String): Flow<RsvpInfo>
+
+    /**
+     * Quem confirmou presença no evento (prévia com nome e foto de perfil).
+     * A lista é curta por definição: serve para mostrar as primeiras pessoas.
+     */
+    fun observeAttendees(eventId: String): Flow<List<Attendee>>
 }

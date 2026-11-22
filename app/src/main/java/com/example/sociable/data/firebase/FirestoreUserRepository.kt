@@ -11,6 +11,7 @@ import com.example.sociable.data.model.User
 import com.example.sociable.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
@@ -66,6 +67,7 @@ class FirestoreUserRepository(
             }
 
             document.set(updated.toFirestoreMap()).await()
+            syncAttendeeProfile(userId, updated.name, updated.photoUrl)
             AppResult.Success(updated)
         } catch (exception: CancellationException) {
             throw exception
@@ -102,7 +104,46 @@ class FirestoreUserRepository(
         }
     }
 
+    /**
+     * Atualiza a cópia pública usada pela prévia de participantes. É uma
+     * sincronização best-effort: o perfil já foi salvo e uma falha pontual não
+     * deve impedir a pessoa de continuar usando o app.
+     */
+    private suspend fun syncAttendeeProfile(
+        userId: String,
+        name: String,
+        photoUrl: String?,
+    ) {
+        try {
+            val attendees = firestore.collectionGroup(ATTENDEES)
+                .whereEqualTo(FieldPath.documentId(), userId)
+                .limit(ATTENDEE_SYNC_LIMIT)
+                .get()
+                .await()
+            if (attendees.isEmpty) return
+
+            val batch = firestore.batch()
+            attendees.documents.forEach { attendee ->
+                batch.update(
+                    attendee.reference,
+                    mapOf(
+                        "name" to name,
+                        "photoUrl" to photoUrl,
+                    ),
+                )
+            }
+            batch.commit().await()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+            // A próxima confirmação de presença ou nova edição do perfil
+            // reconcilia a prévia.
+        }
+    }
+
     private companion object {
         const val USERS = "users"
+        const val ATTENDEES = "attendees"
+        const val ATTENDEE_SYNC_LIMIT = 30L
     }
 }

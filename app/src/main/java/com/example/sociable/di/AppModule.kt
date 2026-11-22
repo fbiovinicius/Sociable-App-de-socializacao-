@@ -7,11 +7,13 @@ import com.example.sociable.core.time.TimeProvider
 import com.example.sociable.data.repository.AuthRepository
 import com.example.sociable.data.repository.ChatRepository
 import com.example.sociable.data.repository.EventRepository
+import com.example.sociable.data.repository.ReportRepository
 import com.example.sociable.data.repository.ReviewRepository
 import com.example.sociable.data.repository.UserRepository
 import com.example.sociable.data.firebase.FirebaseAuthRepository
 import com.example.sociable.data.firebase.FirestoreChatRepository
 import com.example.sociable.data.firebase.FirestoreEventRepository
+import com.example.sociable.data.firebase.FirestoreReportRepository
 import com.example.sociable.data.firebase.FirestoreReviewRepository
 import com.example.sociable.data.firebase.FirestoreUserRepository
 import com.example.sociable.data.notifications.WorkManagerReminderScheduler
@@ -35,7 +37,7 @@ import org.koin.dsl.module
  * Grafo de dependências.
  *
  * >>> PONTO DE TROCA PARA O BACKEND <<<
- * Auth, perfil, eventos, presença, chat e avaliações usam Firebase.
+ * Auth, perfil, eventos, presença, chat, avaliações e denúncias usam Firebase.
  * Os repositórios fake continuam em data/fake apenas para os testes.
  */
 val appModule = module {
@@ -54,6 +56,9 @@ val appModule = module {
     // Chat e avaliações persistidos no Cloud Firestore.
     single<ChatRepository> { FirestoreChatRepository(get(), get()) }
     single<ReviewRepository> { FirestoreReviewRepository(get(), get()) }
+
+    // Denúncias de eventos (coleção `reports`; leitura bloqueada no cliente).
+    single<ReportRepository> { FirestoreReportRepository(get()) }
 
     // Lembretes locais (bloco F1).
     single<ReminderScheduler> { WorkManagerReminderScheduler(androidContext()) }

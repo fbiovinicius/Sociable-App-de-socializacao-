@@ -1,5 +1,6 @@
 package com.example.sociable.data.firebase
 
+import com.example.sociable.data.model.Attendee
 import com.example.sociable.data.model.Event
 import com.example.sociable.data.model.EventCategory
 import com.example.sociable.data.model.EventDraft
@@ -30,6 +31,32 @@ internal object EventFields {
     const val CREATED_AT = "createdAt"
     const val IS_SECRET = "isSecret"
     const val STATUS = "status"
+}
+
+/** Nomes dos campos da subcoleção pública `events/{id}/attendees`. */
+internal object AttendeeFields {
+    const val USER_ID = "userId"
+    const val NAME = "name"
+    const val PHOTO_URL = "photoUrl"
+    const val CREATED_AT = "createdAt"
+}
+
+/** Documento público de quem confirmou presença (só o necessário para a prévia). */
+internal fun Attendee.toAttendeeMap(createdAt: Any): Map<String, Any?> = mapOf(
+    AttendeeFields.USER_ID to userId,
+    AttendeeFields.NAME to name,
+    AttendeeFields.PHOTO_URL to photoUrl,
+    AttendeeFields.CREATED_AT to createdAt,
+)
+
+/** Converte o documento da subcoleção de participantes no modelo de domínio. */
+internal fun DocumentSnapshot.toDomainAttendee(): Attendee? {
+    if (!exists()) return null
+    return Attendee(
+        userId = getString(AttendeeFields.USER_ID) ?: id,
+        name = getString(AttendeeFields.NAME).orEmpty(),
+        photoUrl = getString(AttendeeFields.PHOTO_URL),
+    )
 }
 
 /** Valores públicos de um segredinho. O endereço real fica em `private/location`. */
