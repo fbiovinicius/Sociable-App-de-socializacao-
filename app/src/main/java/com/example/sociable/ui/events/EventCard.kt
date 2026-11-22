@@ -25,6 +25,15 @@ import com.example.sociable.ui.common.formatPriceText
 import com.example.sociable.ui.common.formatSpots
 import com.example.sociable.ui.common.pinRes
 import com.example.sociable.ui.theme.SociableTheme
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.clip
+import java.time.Instant
 
 @Composable
 fun EventCard(
@@ -64,6 +73,20 @@ fun EventCard(
                 )
             }
 
+            val now = remember { Instant.now() }
+            val isNow = event.isHappeningAt(now)
+            val capacity = event.capacity
+            val isFull = capacity != null && event.goingCount >= capacity
+            if (isNow || isFull) {
+                Row(
+                    modifier = Modifier.padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (isNow) StatusBadge(text = "Agora", filled = true)
+                    if (isFull) StatusBadge(text = "Lotado", filled = false)
+                }
+            }
+
             Text(
                 text = event.title,
                 color = SociableTheme.ink,
@@ -86,6 +109,27 @@ fun EventCard(
                 modifier = Modifier.padding(top = 4.dp),
             )
 
+            if (capacity != null && capacity > 0) {
+                val progress = (event.goingCount.toFloat() / capacity).coerceIn(0f, 1f)
+                val barShape = RoundedCornerShape(4.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .height(8.dp)
+                        .clip(barShape)
+                        .background(SociableTheme.chip)
+                        .border(1.5.dp, SociableTheme.ink, barShape),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progress)
+                            .fillMaxHeight()
+                            .background(SociableTheme.accent),
+                    )
+                }
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -106,5 +150,23 @@ fun EventCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun StatusBadge(text: String, filled: Boolean) {
+    val shape = RoundedCornerShape(10.dp)
+    Box(
+        modifier = Modifier
+            .background(if (filled) SociableTheme.accent else SociableTheme.accentSoft, shape)
+            .border(1.5.dp, SociableTheme.ink, shape)
+            .padding(horizontal = 10.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = text,
+            color = if (filled) SociableTheme.onAccent else SociableTheme.ink,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
