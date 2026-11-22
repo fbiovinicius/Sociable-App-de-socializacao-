@@ -6,6 +6,7 @@ import org.koin.android.ext.koin.androidContext
 import com.example.sociable.core.time.TimeProvider
 import com.example.sociable.data.repository.AuthRepository
 import com.example.sociable.data.repository.ChatRepository
+import com.example.sociable.data.repository.CommunityRepository
 import com.example.sociable.data.repository.EventRepository
 import com.example.sociable.data.repository.ReportRepository
 import com.example.sociable.data.repository.ReviewRepository
@@ -16,16 +17,19 @@ import com.example.sociable.data.firebase.FirestoreEventRepository
 import com.example.sociable.data.firebase.FirestoreReportRepository
 import com.example.sociable.data.firebase.FirestoreReviewRepository
 import com.example.sociable.data.firebase.FirestoreUserRepository
+import com.example.sociable.data.fake.FakeCommunityRepository
 import com.example.sociable.data.notifications.WorkManagerReminderScheduler
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.example.sociable.feature.auth.LoginViewModel
 import com.example.sociable.feature.auth.RegisterViewModel
 import com.example.sociable.feature.chat.ChatViewModel
+import com.example.sociable.feature.community.CommunityListViewModel
 import com.example.sociable.feature.events.CreateEventViewModel
 import com.example.sociable.feature.events.EventDetailViewModel
 import com.example.sociable.feature.events.EventListViewModel
 import com.example.sociable.feature.map.MapViewModel
+import com.example.sociable.feature.messages.MessagesViewModel
 import com.example.sociable.feature.onboarding.OnboardingViewModel
 import com.example.sociable.feature.profile.ProfileViewModel
 import com.example.sociable.feature.review.ReviewViewModel
@@ -60,6 +64,9 @@ val appModule = module {
     // Denúncias de eventos (coleção `reports`; leitura bloqueada no cliente).
     single<ReportRepository> { FirestoreReportRepository(get()) }
 
+    // Comunidades (modo fake por enquanto; Firebase depois).
+    single<CommunityRepository> { FakeCommunityRepository(get(), get()) }
+
     // Lembretes locais (bloco F1).
     single<ReminderScheduler> { WorkManagerReminderScheduler(androidContext()) }
 
@@ -70,6 +77,14 @@ val appModule = module {
     viewModelOf(::CreateEventViewModel)
     viewModelOf(::ProfileViewModel)
     viewModelOf(::MapViewModel)
+    viewModelOf(::MessagesViewModel)
+
+    viewModel<CommunityListViewModel> {
+        CommunityListViewModel(
+            communityRepository = get(),
+            authRepository = get(),
+        )
+    }
 
     viewModel<ChatViewModel> { params ->
         ChatViewModel(

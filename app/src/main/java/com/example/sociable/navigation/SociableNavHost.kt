@@ -26,10 +26,12 @@ import com.example.sociable.R
 import com.example.sociable.feature.auth.LoginViewModel
 import com.example.sociable.feature.auth.RegisterViewModel
 import com.example.sociable.feature.chat.ChatViewModel
+import com.example.sociable.feature.community.CommunityListViewModel
 import com.example.sociable.feature.events.CreateEventViewModel
 import com.example.sociable.feature.events.EventDetailViewModel
 import com.example.sociable.feature.events.EventListViewModel
 import com.example.sociable.feature.map.MapViewModel
+import com.example.sociable.feature.messages.MessagesViewModel
 import com.example.sociable.feature.onboarding.OnboardingViewModel
 import com.example.sociable.feature.profile.ProfileViewModel
 import com.example.sociable.feature.review.ReviewViewModel
@@ -42,10 +44,13 @@ import com.example.sociable.ui.events.CreateEventScreen
 import com.example.sociable.ui.events.EventDetailScreen
 import com.example.sociable.ui.events.EventListScreen
 import com.example.sociable.ui.map.MapScreen
+import com.example.sociable.ui.messages.ChatInfoScreen
+import com.example.sociable.ui.messages.CommunityCreateScreen
+import com.example.sociable.ui.messages.CommunityListScreen
+import com.example.sociable.ui.messages.MessagesScreen
 import com.example.sociable.ui.onboarding.OnboardingScreen
 import com.example.sociable.ui.profile.ProfileScreen
 import com.example.sociable.ui.review.ReviewScreen
-import com.example.sociable.ui.secret.SecretScreen
 import com.example.sociable.ui.theme.SociableTheme
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -56,7 +61,7 @@ private data class Tab(val route: String, val label: String, val icon: Int)
 private val tabs = listOf(
     Tab(Routes.EVENTS, "Descobrir", R.drawable.ic_pin_show),
     Tab(Routes.MAP, "Mapa", R.drawable.ic_pin_party),
-    Tab(Routes.SECRET, "Chat da Cidade", R.drawable.ic_pin_secret),
+    Tab(Routes.MESSAGES, "Mensagens", R.drawable.ic_pin_secret),
     Tab(Routes.PROFILE, "Perfil", R.drawable.ic_pin_people),
 )
 
@@ -187,14 +192,63 @@ fun SociableNavHost(
                 )
             }
 
-            composable(Routes.SECRET) {
-                val viewModel: EventListViewModel = koinViewModel()
-                SecretScreen(
+            composable(Routes.MESSAGES) {
+                val viewModel: MessagesViewModel = koinViewModel()
+                MessagesScreen(
                     viewModel = viewModel,
-                    onEventClick = { eventId ->
-                        navController.navigate(Routes.eventDetail(eventId))
+                    onConversationClick = { event ->
+                        // Navega para ChatInfoScreen passando o evento
+                        // Como não temos rota com objeto, vamos passar o eventId e buscar o evento lá
+                        navController.navigate("messages/chat_info/${event.eventId}")
                     },
-                    onCreateClick = { navController.navigate(Routes.createEvent(secret = true)) },
+                    onCommunityClick = { navController.navigate(Routes.COMMUNITIES) },
+                    onCreateCommunity = { navController.navigate(Routes.COMMUNITY_CREATE) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(
+                route = Routes.COMMUNITIES,
+            ) {
+                val viewModel: CommunityListViewModel = koinViewModel()
+                CommunityListScreen(
+                    viewModel = viewModel,
+                    onCommunityClick = { /* TODO */ },
+                    onJoinCommunity = { communityId -> viewModel.joinCommunity(communityId) },
+                    onCreateCommunity = { navController.navigate(Routes.COMMUNITY_CREATE) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(
+                route = Routes.COMMUNITY_CREATE,
+            ) {
+                val viewModel: CommunityListViewModel = koinViewModel()
+                CommunityCreateScreen(
+                    viewModel = viewModel,
+                    onCreate = { draft ->
+                        viewModel.createCommunity(draft)
+                        navController.popBackStack()
+                    },
+                    onCancel = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(
+                route = Routes.CHAT_INFO,
+                arguments = listOf(navArgument("eventId") { type = NavType.StringType }),
+            ) { entry ->
+                val eventId = entry.arguments?.getString("eventId").orEmpty()
+                val viewModel: MessagesViewModel = koinViewModel()
+                // Buscar o evento do estado do ViewModel
+                val event = viewModel.uiState.value.conversations.firstOrNull { it.eventId == eventId }
+                    ?: return@composable
+                ChatInfoScreen(
+                    viewModel = viewModel,
+                    event = event,
+                    onEnterChat = { navController.navigate(Routes.chat(eventId)) },
+                    onBack = { navController.popBackStack() },
                 )
             }
 

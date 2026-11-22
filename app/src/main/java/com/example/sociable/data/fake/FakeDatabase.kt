@@ -1,6 +1,8 @@
 package com.example.sociable.data.fake
 
 import com.example.sociable.core.time.TimeProvider
+import com.example.sociable.data.model.Community
+import com.example.sociable.data.model.CommunityMembership
 import com.example.sociable.data.model.Event
 import com.example.sociable.data.model.EventCategory
 import com.example.sociable.data.model.EventReport
@@ -242,6 +244,53 @@ class FakeDatabase(timeProvider: TimeProvider) {
                     createdAt = now.minus(2, ChronoUnit.DAYS),
                 ),
             )
+        )
+    )
+
+    /** Comunidades disponíveis (públicas e privadas). */
+    val communities = MutableStateFlow(
+        listOf(
+            Community(
+                id = "community-1",
+                name = "Rolê dos Sábados",
+                description = "Encontro semanal de gente nova para conhecer bares do Centro.",
+                isPublic = true,
+                creatorId = "user-1",
+                memberCount = 12,
+                createdAt = now.minus(30, ChronoUnit.DAYS),
+                icon = "🍻",
+                color = "#FFB300",
+            ),
+            Community(
+                id = "community-2",
+                name = "Corrida da Manhã",
+                description = "Galera que se encontra para correr no Parque do Mindu.",
+                isPublic = true,
+                creatorId = "user-2",
+                memberCount = 8,
+                createdAt = now.minus(15, ChronoUnit.DAYS),
+                icon = "🏃",
+                color = "#4CAF50",
+            ),
+            Community(
+                id = "community-3",
+                name = "Noite dos Segredos",
+                description = "Comunidade privada para eventos fechados e convites.",
+                isPublic = false,
+                creatorId = "user-3",
+                memberCount = 5,
+                createdAt = now.minus(5, ChronoUnit.DAYS),
+                icon = "🔒",
+                color = "#9C27B0",
+            ),
+        )
+    )
+
+    /** communityId -> ids dos usuários membros. */
+    val communityMemberships = MutableStateFlow(
+        mapOf(
+            "community-1" to setOf("user-1", "user-2"),
+            "community-2" to setOf("user-2", "user-3"),
         )
     )
 }

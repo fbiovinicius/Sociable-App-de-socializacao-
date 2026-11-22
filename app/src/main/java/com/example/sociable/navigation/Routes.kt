@@ -11,6 +11,10 @@ object Routes {
     const val SECRET = "secret"
     const val PROFILE = "profile"
     const val MAP = "map"
+    const val MESSAGES = "messages"
+    const val COMMUNITIES = "messages/communities"
+    const val COMMUNITY_CREATE = "messages/communities/create"
+    const val CHAT_INFO = "messages/chat_info/{eventId}"
 
     const val CREATE_EVENT = "create_event?secret={secret}"
     const val EDIT_EVENT = "event/{eventId}/edit"
