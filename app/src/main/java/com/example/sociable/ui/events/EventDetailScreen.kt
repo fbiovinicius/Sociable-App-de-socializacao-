@@ -47,6 +47,7 @@ import com.example.sociable.ui.common.formatPriceText
 import com.example.sociable.ui.common.formatSpots
 import com.example.sociable.ui.common.pinRes
 import com.example.sociable.ui.theme.SociableTheme
+import com.example.sociable.ui.common.AddImageBox
 
 @Composable
 fun EventDetailScreen(
@@ -110,6 +111,16 @@ fun EventDetailScreen(
                 ) {
                     BackLink(onBack)
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    // Capa do evento. Por enquanto só visual: trocar a imagem depende
+                    // de suporte na EventDetailViewModel (fora do escopo de UI).
+                    AddImageBox(
+                        title = "Adicionar imagem do evento",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(168.dp),
+                        )
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Pin(pinRes(event.category, event.isSecret), size = 56.dp)
