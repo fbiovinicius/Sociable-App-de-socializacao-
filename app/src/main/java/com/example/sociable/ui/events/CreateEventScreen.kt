@@ -36,16 +36,21 @@ import com.example.sociable.core.time.ManausTime
 import com.example.sociable.data.model.EventCategory
 import com.example.sociable.feature.events.CreateEventViewModel
 import com.example.sociable.ui.common.BackLink
+import com.example.sociable.ui.common.DateTimeField
+import com.example.sociable.ui.common.DurationInputDialog
 import com.example.sociable.ui.common.ErrorText
 import com.example.sociable.ui.common.FormTextField
 import com.example.sociable.ui.common.ScreenTitle
 import com.example.sociable.ui.common.SociableButton
 import com.example.sociable.ui.common.SociableChip
+import com.example.sociable.ui.common.SociableDatePickerDialog
+import com.example.sociable.ui.common.SociableTimePickerDialog
 import com.example.sociable.ui.common.StickerBox
 import com.example.sociable.ui.common.message
 import com.example.sociable.ui.theme.SociableTheme
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -59,6 +64,69 @@ fun CreateEventScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showPicker by remember { mutableStateOf(false) }
+    var showStartDate by remember { mutableStateOf(false) }
+    var showStartTime by remember { mutableStateOf(false) }
+    var showDuration by remember { mutableStateOf(false) }
+    var showEndEditor by remember { mutableStateOf(false) }
+    var showEndDate by remember { mutableStateOf(false) }
+    var showEndTime by remember { mutableStateOf(false) }
+
+    if (showStartDate) {
+        SociableDatePickerDialog(
+            initial = ManausTime.localDate(state.startAt),
+            minDate = LocalDate.now(ManausTime.ZONE),
+            onConfirm = {
+                showStartDate = false
+                viewModel.onDateChange(it)
+            },
+            onDismiss = { showStartDate = false },
+        )
+    }
+
+    if (showStartTime) {
+        SociableTimePickerDialog(
+            initial = ManausTime.localTime(state.startAt),
+            onConfirm = {
+                showStartTime = false
+                viewModel.onStartTimeChange(it)
+            },
+            onDismiss = { showStartTime = false },
+        )
+    }
+
+    if (showDuration) {
+        DurationInputDialog(
+            initialMinutes = state.durationMinutes,
+            onConfirm = {
+                showDuration = false
+                viewModel.onDurationChange(it)
+            },
+            onDismiss = { showDuration = false },
+        )
+    }
+
+    if (showEndDate) {
+        SociableDatePickerDialog(
+            initial = ManausTime.localDate(state.endAt),
+            minDate = ManausTime.localDate(state.startAt),
+            onConfirm = {
+                showEndDate = false
+                viewModel.onEndDateChange(it)
+            },
+            onDismiss = { showEndDate = false },
+        )
+    }
+
+    if (showEndTime) {
+        SociableTimePickerDialog(
+            initial = ManausTime.localTime(state.endAt),
+            onConfirm = {
+                showEndTime = false
+                viewModel.onEndTimeChange(it)
+            },
+            onDismiss = { showEndTime = false },
+        )
+    }
 
     if (showPicker) {
         LocationPickerDialog(
@@ -201,23 +269,75 @@ fun CreateEventScreen(
             contentPadding = PaddingValues(14.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                PeriodRow(
+                DateTimeField(
+                    label = "Data",
+                    value = ManausTime.date(state.startAt),
+                    onClick = { showStartDate = true },
+                )
+                DateTimeField(
                     label = "Início",
-                    value = ManausTime.dateTime(state.startAt),
-                    onMinus = { viewModel.onStartShift(-1) },
-                    onPlus = { viewModel.onStartShift(1) },
+                    value = ManausTime.time(state.startAt),
+                    onClick = { showStartTime = true },
                 )
-                PeriodRow(
-                    label = "Fim",
-                    value = ManausTime.dateTime(state.endAt),
-                    onMinus = { viewModel.onEndShift(-1) },
-                    onPlus = { viewModel.onEndShift(1) },
+
+                Text(
+                    text = "Duração",
+                    color = SociableTheme.muted,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
                 )
+                val presetDurations = listOf(60, 120, 180, 240)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    presetDurations.forEach { minutes ->
+                        SociableChip(
+                            text = "${minutes / 60}h",
+                            selected = !state.isEndCustom && state.durationMinutes == minutes,
+                            onClick = { viewModel.onDurationChange(minutes) },
+                        )
+                    }
+                    SociableChip(
+                        text = "outra",
+                        selected = !state.isEndCustom && state.durationMinutes !in presetDurations,
+                        onClick = { showDuration = true },
+                    )
+                }
+
+                Text(
+                    text = "Termina ${ManausTime.date(state.endAt)} às ${ManausTime.time(state.endAt)}",
+                    color = SociableTheme.muted,
+                    fontSize = 13.sp,
+                )
+
+                SociableChip(
+                    text = if (showEndEditor) "✓ Fim ajustado" else "⚙ Ajustar fim",
+                    selected = showEndEditor,
+                    onClick = {
+                        showEndEditor = !showEndEditor
+                        if (!showEndEditor) viewModel.onUseDuration()
+                    },
+                )
+
+                if (showEndEditor) {
+                    DateTimeField(
+                        label = "Data de término",
+                        value = ManausTime.date(state.endAt),
+                        onClick = { showEndDate = true },
+                    )
+                    DateTimeField(
+                        label = "Fim",
+                        value = ManausTime.time(state.endAt),
+                        onClick = { showEndTime = true },
+                    )
+                }
+
                 val periodError = state.periodError
                 if (periodError != null) {
                     Text(
                         text = periodError.message(),
-                        color = SociableTheme.ink,
+                        color = SociableTheme.accent,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                     )
@@ -277,32 +397,5 @@ fun CreateEventScreen(
             isLoading = state.isLoading,
         )
         Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-@Composable
-private fun PeriodRow(
-    label: String,
-    value: String,
-    onMinus: () -> Unit,
-    onPlus: () -> Unit,
-) {
-    Column {
-        Text(
-            text = label,
-            color = SociableTheme.muted,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = value,
-            color = SociableTheme.ink,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(bottom = 6.dp),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SociableChip(text = "−1h", selected = false, onClick = onMinus)
-            SociableChip(text = "+1h", selected = false, onClick = onPlus)
-        }
     }
 }

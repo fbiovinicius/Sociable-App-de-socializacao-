@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sociable.core.AppError
 import com.example.sociable.core.AppResult
+import com.example.sociable.core.time.ManausTime
 import com.example.sociable.core.time.TimeProvider
 import com.example.sociable.core.validation.ValidationError
 import com.example.sociable.core.validation.Validators
@@ -17,12 +18,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+
+private const val DEFAULT_DURATION_MINUTES = 120
+private const val MIN_DURATION_MINUTES = 5
 
 data class CreateEventUiState(
     val startAt: Instant,
     val endAt: Instant,
+    val durationMinutes: Int = DEFAULT_DURATION_MINUTES,
+    /** O fim foi escolhido à mão e não deve seguir a duração. */
+    val isEndCustom: Boolean = false,
     val title: String = "",
     val description: String = "",
     val category: EventCategory = EventCategory.PARTY,
@@ -56,12 +65,14 @@ class CreateEventViewModel(
     timeProvider: TimeProvider,
 ) : ViewModel() {
 
-    private val initialStart = timeProvider.now().plus(1, ChronoUnit.HOURS)
+    private val initialStart = timeProvider.now()
+        .truncatedTo(ChronoUnit.HOURS)
+        .plus(1, ChronoUnit.HOURS)
 
     private val _uiState = MutableStateFlow(
         CreateEventUiState(
             startAt = initialStart,
-            endAt = initialStart.plus(2, ChronoUnit.HOURS),
+            endAt = initialStart.plus(DEFAULT_DURATION_MINUTES.toLong(), ChronoUnit.MINUTES),
         )
     )
     val uiState: StateFlow<CreateEventUiState> = _uiState.asStateFlow()
@@ -106,17 +117,70 @@ class CreateEventViewModel(
         }
     }
 
-    fun onStartShift(hours: Long) {
-        _uiState.update {
-            it.copy(startAt = it.startAt.plus(hours, ChronoUnit.HOURS), periodError = null)
+    /** Nova data mantendo a hora de início escolhida. */
+    fun onDateChange(date: LocalDate) {
+        _uiState.update { state ->
+            val start = ManausTime.toInstant(date, ManausTime.localTime(state.startAt))
+            state.withStart(start)
         }
     }
 
-    fun onEndShift(hours: Long) {
-        _uiState.update {
-            it.copy(endAt = it.endAt.plus(hours, ChronoUnit.HOURS), periodError = null)
+    /** Nova hora de início mantendo a data escolhida. */
+    fun onStartTimeChange(time: LocalTime) {
+        _uiState.update { state ->
+            val start = ManausTime.toInstant(ManausTime.localDate(state.startAt), time)
+            state.withStart(start)
         }
     }
+
+    /** Duração em minutos; o fim é recalculado a partir do início. */
+    fun onDurationChange(minutes: Int) {
+        val safe = minutes.coerceIn(MIN_DURATION_MINUTES, Validators.MAX_EVENT_DURATION_MINUTES.toInt())
+        _uiState.update {
+            it.copy(
+                durationMinutes = safe,
+                isEndCustom = false,
+                endAt = it.startAt.plus(safe.toLong(), ChronoUnit.MINUTES),
+                periodError = null,
+            )
+        }
+    }
+
+    /** Volta a calcular o fim pela duração, descartando o ajuste manual. */
+    fun onUseDuration() {
+        _uiState.update {
+            it.copy(
+                isEndCustom = false,
+                endAt = it.startAt.plus(it.durationMinutes.toLong(), ChronoUnit.MINUTES),
+                periodError = null,
+            )
+        }
+    }
+
+    fun onEndDateChange(date: LocalDate) {
+        _uiState.update { state ->
+            val end = ManausTime.toInstant(date, ManausTime.localTime(state.endAt))
+            state.copy(endAt = end, isEndCustom = true, periodError = null)
+        }
+    }
+
+    fun onEndTimeChange(time: LocalTime) {
+        _uiState.update { state ->
+            val end = ManausTime.toInstant(ManausTime.localDate(state.endAt), time)
+            state.copy(endAt = end, isEndCustom = true, periodError = null)
+        }
+    }
+
+    private fun CreateEventUiState.withStart(start: Instant): CreateEventUiState =
+        if (isEndCustom) {
+            copy(startAt = start, periodError = null)
+        } else {
+            copy(
+                startAt = start,
+                endAt = start.plus(durationMinutes.toLong(), ChronoUnit.MINUTES),
+                periodError = null,
+            )
+        }
 
     fun onFreeChange(isFree: Boolean) {
         _uiState.update {
@@ -160,7 +224,7 @@ class CreateEventViewModel(
         }
         val capacityError = Validators.capacity(state.capacity)
         val imageUrlError = Validators.imageUrl(state.imageUrl)
-        val periodError = Validators.eventPeriod(state.startAt, state.endAt)
+        val periodError = Validators.eventDuration(state.startAt, state.endAt)
 
         val hasErrors = listOf(
             titleError, descriptionError, venueError, addressError,

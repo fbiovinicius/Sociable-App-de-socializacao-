@@ -1,5 +1,6 @@
 package com.example.sociable.core.validation
 
+import java.time.Duration
 import java.time.Instant
 
 /**
@@ -23,6 +24,7 @@ object Validators {
     const val IMAGE_URL_MAX = 500
     const val MAX_PRICE = 100_000.0
     const val MAX_CAPACITY = 10_000
+    const val MAX_EVENT_DURATION_MINUTES = 7L * 24 * 60
 
     private val EMAIL_REGEX = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
     private val URL_REGEX = Regex("^https?://.+", RegexOption.IGNORE_CASE)
@@ -128,6 +130,19 @@ object Validators {
 
     fun eventPeriod(startAt: Instant, endAt: Instant): ValidationError? =
         if (endAt.isAfter(startAt)) null else ValidationError.END_BEFORE_START
+
+    /**
+     * Fim depois do início e duração dentro do limite. Evita que um erro de
+     * digitação (ex.: ano trocado) crie um evento de meses.
+     */
+    fun eventDuration(startAt: Instant, endAt: Instant): ValidationError? {
+        val minutes = Duration.between(startAt, endAt).toMinutes()
+        return when {
+            minutes <= 0 -> ValidationError.END_BEFORE_START
+            minutes > MAX_EVENT_DURATION_MINUTES -> ValidationError.INVALID_DURATION
+            else -> null
+        }
+    }
 
     fun message(value: String): ValidationError? {
         val trimmed = value.trim()

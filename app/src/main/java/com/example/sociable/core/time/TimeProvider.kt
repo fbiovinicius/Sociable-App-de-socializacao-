@@ -1,6 +1,8 @@
 package com.example.sociable.core.time
 
 import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -27,4 +29,12 @@ object ManausTime {
     fun date(instant: Instant): String = DATE.format(instant)
     fun time(instant: Instant): String = TIME.format(instant)
     fun weekday(instant: Instant): String = WEEKDAY.format(instant).replaceFirstChar { it.uppercase() }
+
+    /** Data e hora escolhidas no fuso de Manaus viram um instante absoluto. */
+    fun toInstant(date: LocalDate, time: LocalTime): Instant =
+        date.atTime(time).atZone(ZONE).toInstant()
+
+    fun localDate(instant: Instant): LocalDate = instant.atZone(ZONE).toLocalDate()
+
+    fun localTime(instant: Instant): LocalTime = instant.atZone(ZONE).toLocalTime()
 }

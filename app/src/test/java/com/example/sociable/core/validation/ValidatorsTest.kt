@@ -56,6 +56,33 @@ class ValidatorsTest {
     }
 
     @Test
+    fun `duracao do evento precisa ser positiva e no maximo sete dias`() {
+        val start = Instant.parse("2026-05-10T20:00:00Z")
+        assertEquals(
+            ValidationError.END_BEFORE_START,
+            Validators.eventDuration(start, start.minusSeconds(3600)),
+        )
+        assertEquals(
+            ValidationError.END_BEFORE_START,
+            Validators.eventDuration(start, start),
+        )
+        assertNull(Validators.eventDuration(start, start.plusSeconds(3600)))
+        assertNull(
+            Validators.eventDuration(
+                start,
+                start.plusSeconds(Validators.MAX_EVENT_DURATION_MINUTES * 60),
+            ),
+        )
+        assertEquals(
+            ValidationError.INVALID_DURATION,
+            Validators.eventDuration(
+                start,
+                start.plusSeconds(Validators.MAX_EVENT_DURATION_MINUTES * 60 + 60),
+            ),
+        )
+    }
+
+    @Test
     fun `preco aceita virgula e recusa valores invalidos`() {
         assertNull(Validators.price(""))
         assertNull(Validators.price("20,50"))

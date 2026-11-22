@@ -14,5 +14,6 @@ enum class ValidationError {
     INVALID_COORDINATE,
     INVALID_RATING,
     END_BEFORE_START,
+    INVALID_DURATION,
     INVALID_URL,
 }
