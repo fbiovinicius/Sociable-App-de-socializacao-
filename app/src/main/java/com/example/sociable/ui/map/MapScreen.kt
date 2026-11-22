@@ -1,6 +1,8 @@
 package com.example.sociable.ui.map
 
 import android.Manifest
+import android.content.Intent
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +21,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
@@ -33,6 +37,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -47,6 +52,7 @@ import com.example.sociable.data.model.EventCategory
 import com.example.sociable.feature.map.MapMarker
 import com.example.sociable.feature.map.MapViewModel
 import com.example.sociable.ui.common.ErrorText
+import com.example.sociable.ui.common.AttendeeAvatarStack
 import com.example.sociable.ui.common.Pin
 import com.example.sociable.ui.common.SociableButton
 import com.example.sociable.ui.common.SociableChip
@@ -54,6 +60,7 @@ import com.example.sociable.ui.common.StickerBox
 import com.example.sociable.ui.common.formatEventDay
 import com.example.sociable.ui.common.formatPriceText
 import com.example.sociable.ui.common.formatSpots
+import com.example.sociable.ui.common.message
 import com.example.sociable.ui.common.pinRes
 import com.example.sociable.ui.theme.SociableTheme
 import com.example.sociable.ui.theme.isSociableDarkTheme
@@ -100,6 +107,7 @@ fun MapScreen(
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf("Todos") }
+    var showReportDialog by remember { mutableStateOf(false) }
 
     val visible = state.markers.filter { marker ->
         marker.matchesFilter(filter) && (
@@ -112,8 +120,28 @@ fun MapScreen(
     val selected = visible.firstOrNull { it.eventId == state.selectedEventId }
         ?: visible.firstOrNull()
 
+    // Busca e filtros são locais à tela. Se o evento marcado deixar de aparecer,
+    // seleciona o primeiro visível para manter cards, participantes e denúncia
+    // apontando sempre para o mesmo evento.
+    LaunchedEffect(selected?.eventId, state.selectedEventId) {
+        val visibleSelectedId = selected?.eventId
+        if (visibleSelectedId != state.selectedEventId) {
+            viewModel.onMarkerSelected(visibleSelectedId)
+        }
+    }
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // Confirmação visual quando a denúncia é enviada. O diálogo só fecha depois
+    // do sucesso; em caso de falha, ele permanece aberto com o erro visível.
+    LaunchedEffect(state.reportSent) {
+        if (state.reportSent) {
+            showReportDialog = false
+            Toast.makeText(context, "Denúncia enviada. Obrigado!", Toast.LENGTH_SHORT).show()
+            viewModel.clearReportState()
+        }
+    }
 
     // No modo escuro o mapa também fica escuro; sem estilo, ele continuaria claro.
     // Usa o mesmo critério do tema do app (Perfil → Aparência), não só o do sistema.
@@ -130,6 +158,22 @@ fun MapScreen(
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(MANAUS_CENTER, DEFAULT_ZOOM)
+    }
+
+    /** Compartilha o evento pelo menu de compartilhamento do Android. */
+    fun shareEvent(marker: MapMarker) {
+        val message = buildString {
+            append(marker.title)
+            append("\n📅 ${formatEventDay(marker.startAt)} às ${ManausTime.time(marker.startAt)}")
+            append("\n📍 ${marker.venueName} · ${marker.address}")
+            append("\n\nBora? Confirme presença no Sociable!")
+        }
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, marker.title)
+            putExtra(Intent.EXTRA_TEXT, message)
+        }
+        context.startActivity(Intent.createChooser(intent, "Compartilhar evento"))
     }
 
     // Permissão de localização: habilita o ponto azul "você está aqui" do Google Maps.
@@ -330,6 +374,62 @@ fun MapScreen(
                         color = SociableTheme.muted,
                         fontSize = 12.sp,
                     )
+
+                    // Quem está no rolê: número de pessoas + prévia das fotos.
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (state.attendees.isNotEmpty() && selected.goingCount > 0) {
+                            AttendeeAvatarStack(
+                                attendees = state.attendees,
+                                totalCount = selected.goingCount,
+                                maxVisible = 4,
+                                size = 34.dp,
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(SociableTheme.chip),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(text = "👥", fontSize = 15.sp)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = presenceText(selected),
+                                color = SociableTheme.ink,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            if (selected.isHappeningNow) {
+                                Text(
+                                    text = "acontecendo agora",
+                                    color = SociableTheme.accent,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
+                    }
+
+                    // Compartilhar e denunciar.
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SociableChip(
+                            text = "🔗 Compartilhar",
+                            selected = false,
+                            onClick = { shareEvent(selected) },
+                        )
+                        SociableChip(
+                            text = "⚠ Denunciar",
+                            selected = false,
+                            onClick = { showReportDialog = true },
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(12.dp))
                     SociableButton(
                         text = "Ver detalhes",
@@ -350,6 +450,31 @@ fun MapScreen(
                 }
             }
         }
+
+        if (showReportDialog && selected != null) {
+            ReportEventDialog(
+                eventTitle = selected.title,
+                isSending = state.isReporting,
+                errorMessage = state.reportError?.message(),
+                onConfirm = { reason, comment ->
+                    viewModel.reportEvent(reason, comment)
+                },
+                onDismiss = {
+                    showReportDialog = false
+                    viewModel.clearReportState()
+                },
+            )
+        }
+    }
+}
+
+/** Texto de presença do evento no mapa. */
+private fun presenceText(marker: MapMarker): String {
+    val count = marker.goingCount
+    return when {
+        count <= 0 -> "Ninguém confirmou ainda"
+        marker.isHappeningNow -> "$count ${if (count == 1) "pessoa" else "pessoas"} por aqui"
+        else -> "$count ${if (count == 1) "pessoa confirmou" else "pessoas confirmaram"}"
     }
 }
 

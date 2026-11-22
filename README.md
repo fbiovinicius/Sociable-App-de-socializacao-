@@ -45,6 +45,8 @@ Saber o que está acontecendo na cidade ainda é difícil:
 - Mapa interativo com Google Maps Compose e pinos por categoria.
 - Busca e atalhos *Agora*, *Gratuitos*, *Música*, *Gastronomia*, *Esporte* e *Cultura*.
 - Zoom, arraste e card do evento selecionado com acesso ao detalhe.
+- Card do evento mostra **quem vai**: número de pessoas confirmadas e prévia das fotos de perfil.
+- **Compartilhar** o evento (menu de compartilhamento do Android) e **denunciar** (motivo + comentário).
 - Eventos "Segredinhos" ficam fora do mapa para não revelar o local.
 
 **Segredinhos**
@@ -89,8 +91,9 @@ MVP com lógica MVVM e UI em Compose integradas:
 - [x] Chat e avaliações persistidos no Firestore
 - [ ] Google Sign-In
 
-A autenticação, o perfil, os eventos, o RSVP, o chat e as avaliações já usam Firebase.
-Publique o `firestore.rules` do repositório antes de rodar esta versão. O guia de backend está em
+A autenticação, o perfil, os eventos, o RSVP, o chat, as avaliações e as denúncias já usam Firebase.
+Publique o `firestore.rules` do repositório antes de rodar esta versão (ele cobre também a prévia de
+participantes e a coleção de denúncias). O guia de backend está em
 [docs/INTEGRACAO_BACKEND.md](docs/INTEGRACAO_BACKEND.md).
 
 ### Rodando

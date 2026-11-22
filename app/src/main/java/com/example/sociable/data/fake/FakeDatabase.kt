@@ -3,6 +3,7 @@ package com.example.sociable.data.fake
 import com.example.sociable.core.time.TimeProvider
 import com.example.sociable.data.model.Event
 import com.example.sociable.data.model.EventCategory
+import com.example.sociable.data.model.EventReport
 import com.example.sociable.data.model.Interest
 import com.example.sociable.data.model.Message
 import com.example.sociable.data.model.Review
@@ -201,6 +202,9 @@ class FakeDatabase(timeProvider: TimeProvider) {
             "event-3" to setOf("user-1"),
         )
     )
+
+    /** Denúncias enviadas pelas pessoas (memória; no app real vai para o Firestore). */
+    val reports = MutableStateFlow<List<EventReport>>(emptyList())
 
     val messages = MutableStateFlow(
         mapOf(

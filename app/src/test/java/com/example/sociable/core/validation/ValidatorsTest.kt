@@ -134,4 +134,12 @@ class ValidatorsTest {
         assertEquals(ValidationError.INVALID_URL, Validators.imageUrl("exemplo.com/foto.jpg"))
         assertEquals(ValidationError.INVALID_URL, Validators.imageUrl("ftp://exemplo.com/foto.jpg"))
     }
+
+    @Test
+    fun `foto de perfil exige https`() {
+        assertNull(Validators.photoUrl(""))
+        assertNull(Validators.photoUrl("https://exemplo.com/foto.jpg"))
+        assertEquals(ValidationError.INVALID_URL, Validators.photoUrl("http://exemplo.com/foto.jpg"))
+        assertEquals(ValidationError.INVALID_URL, Validators.photoUrl("exemplo.com/foto.jpg"))
+    }
 }

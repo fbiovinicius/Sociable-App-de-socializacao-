@@ -9,6 +9,7 @@ import com.example.sociable.data.model.EventFilter
 import com.example.sociable.data.model.Interest
 import com.example.sociable.data.model.LifeStage
 import com.example.sociable.data.model.LookingFor
+import com.example.sociable.data.model.ReportReason
 import com.example.sociable.data.model.SocialVibe
 import java.time.Instant
 import java.time.ZonedDateTime
@@ -248,5 +249,19 @@ class FakeRepositoriesTest {
         )
 
         assertEquals(AppError.NOT_FOUND, (result as AppResult.Failure).error)
+    }
+
+    @Test
+    fun `denuncia repetida do mesmo usuario e evento nao duplica registro`() = runTest {
+        val db = database()
+        val repository = FakeReportRepository(db, timeProvider)
+
+        val first = repository.reportEvent("event-1", "user-1", ReportReason.OTHER, "primeira")
+        val second = repository.reportEvent("event-1", "user-1", ReportReason.OTHER, "segunda")
+
+        assertTrue(first is AppResult.Success)
+        assertTrue(second is AppResult.Success)
+        assertEquals(1, db.reports.value.size)
+        assertEquals("primeira", db.reports.value.single().comment)
     }
 }

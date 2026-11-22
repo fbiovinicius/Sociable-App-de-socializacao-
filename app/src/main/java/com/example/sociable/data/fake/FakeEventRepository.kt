@@ -3,6 +3,7 @@ package com.example.sociable.data.fake
 import com.example.sociable.core.AppError
 import com.example.sociable.core.AppResult
 import com.example.sociable.core.time.TimeProvider
+import com.example.sociable.data.model.Attendee
 import com.example.sociable.data.model.Event
 import com.example.sociable.data.model.EventDraft
 import com.example.sociable.data.model.EventFilter
@@ -109,5 +110,14 @@ class FakeEventRepository(
                 isGoing = userId in going,
                 capacity = capacity,
             )
+        }
+
+    override fun observeAttendees(eventId: String): Flow<List<Attendee>> =
+        combine(db.rsvps, db.users) { rsvps, users ->
+            rsvps[eventId].orEmpty().mapNotNull { userId ->
+                users.firstOrNull { it.id == userId }?.let { user ->
+                    Attendee(userId = user.id, name = user.name, photoUrl = user.photoUrl)
+                }
+            }
         }
 }
