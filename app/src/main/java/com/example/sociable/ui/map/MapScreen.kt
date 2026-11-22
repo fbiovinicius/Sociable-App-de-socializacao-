@@ -160,13 +160,16 @@ fun MapScreen(
         position = CameraPosition.fromLatLngZoom(MANAUS_CENTER, DEFAULT_ZOOM)
     }
 
-    /** Compartilha o evento pelo menu de compartilhamento do Android. */
+    /** Compartilha o evento pelo menu de compartilhamento do Android, com link direto para o detalhe. */
     fun shareEvent(marker: MapMarker) {
+        val eventLink = "sociable://event/${marker.eventId}"
         val message = buildString {
             append(marker.title)
             append("\n📅 ${formatEventDay(marker.startAt)} às ${ManausTime.time(marker.startAt)}")
             append("\n📍 ${marker.venueName} · ${marker.address}")
-            append("\n\nBora? Confirme presença no Sociable!")
+            append("\n\n🔗 $eventLink")
+            append("\n\nAbra este link no app Sociable para ver o evento.")
+            append("\n\nBora? Confirme presença!")
         }
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
