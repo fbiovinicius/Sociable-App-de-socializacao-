@@ -33,5 +33,6 @@ fun ValidationError.message(): String = when (this) {
     ValidationError.INVALID_COORDINATE -> "Coordenada inválida."
     ValidationError.INVALID_RATING -> "Escolha uma nota de 1 a 5."
     ValidationError.END_BEFORE_START -> "O fim deve ser depois do início."
+    ValidationError.INVALID_DURATION -> "O evento pode durar no máximo 7 dias."
     ValidationError.INVALID_URL -> "Informe uma URL http(s) válida."
 }

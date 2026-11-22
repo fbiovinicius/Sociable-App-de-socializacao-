@@ -39,7 +39,7 @@ Saber o que está acontecendo na cidade ainda é difícil:
 - Feed de eventos de Manaus com busca ("O que você quer viver?").
 - Filtros por data (hoje, amanhã, próximos 7 dias), categoria e somente gratuitos.
 - Cards com categoria, data/hora, local, preço e quantidade de confirmados.
-- Criação de evento com local, coordenadas, período, valor e limite de pessoas.
+- Criação de evento com data, hora de início e duração (fim calculado, com ajuste manual opcional), local, coordenadas, valor e limite de pessoas.
 
 **Mapa**
 - Mapa interativo com Google Maps Compose e pinos por categoria.
