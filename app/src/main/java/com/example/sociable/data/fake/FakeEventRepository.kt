@@ -3,6 +3,7 @@ package com.example.sociable.data.fake
 import com.example.sociable.core.AppError
 import com.example.sociable.core.AppResult
 import com.example.sociable.core.time.TimeProvider
+import com.example.sociable.data.model.Attendee
 import com.example.sociable.data.model.Event
 import com.example.sociable.data.model.EventDraft
 import com.example.sociable.data.model.EventFilter
@@ -67,6 +68,51 @@ class FakeEventRepository(
         return AppResult.Success(event)
     }
 
+    override suspend fun updateEvent(eventId: String, draft: EventDraft): AppResult<Event> {
+        delay(300)
+        val current = db.events.value.firstOrNull { it.id == eventId }
+            ?: return AppResult.Failure(AppError.NOT_FOUND)
+        if (current.organizerId != draft.organizerId) {
+            return AppResult.Failure(AppError.PERMISSION_DENIED)
+        }
+        if (current.status == EventStatus.CANCELLED) {
+            return AppResult.Failure(AppError.INVALID_INPUT)
+        }
+        if (draft.capacity != null && draft.capacity < current.goingCount) {
+            return AppResult.Failure(AppError.INVALID_INPUT)
+        }
+        val updated = current.copy(
+            title = draft.title.trim(),
+            description = draft.description.trim(),
+            category = draft.category,
+            venueName = draft.venueName.trim(),
+            address = draft.address.trim(),
+            latitude = draft.latitude,
+            longitude = draft.longitude,
+            startAt = draft.startAt,
+            endAt = draft.endAt,
+            isFree = draft.isFree,
+            price = if (draft.isFree) null else draft.price,
+            capacity = draft.capacity,
+            imageUrl = draft.imageUrl?.trim()?.takeIf { it.isNotBlank() },
+        )
+        db.events.update { events -> events.map { if (it.id == eventId) updated else it } }
+        return AppResult.Success(updated)
+    }
+
+    override suspend fun cancelEvent(eventId: String): AppResult<Unit> {
+        delay(250)
+        if (db.events.value.none { it.id == eventId }) {
+            return AppResult.Failure(AppError.NOT_FOUND)
+        }
+        db.events.update { events ->
+            events.map {
+                if (it.id == eventId) it.copy(status = EventStatus.CANCELLED) else it
+            }
+        }
+        return AppResult.Success(Unit)
+    }
+
     override suspend fun setRsvp(
         eventId: String,
         userId: String,
@@ -109,5 +155,14 @@ class FakeEventRepository(
                 isGoing = userId in going,
                 capacity = capacity,
             )
+        }
+
+    override fun observeAttendees(eventId: String): Flow<List<Attendee>> =
+        combine(db.rsvps, db.users) { rsvps, users ->
+            rsvps[eventId].orEmpty().mapNotNull { userId ->
+                users.firstOrNull { it.id == userId }?.let { user ->
+                    Attendee(userId = user.id, name = user.name, photoUrl = user.photoUrl)
+                }
+            }
         }
 }

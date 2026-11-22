@@ -20,6 +20,7 @@ import com.example.sociable.core.time.ManausTime
 import com.example.sociable.data.model.Event
 import com.example.sociable.ui.common.Pin
 import com.example.sociable.ui.common.StickerBox
+import com.example.sociable.ui.common.formatDistance
 import com.example.sociable.ui.common.formatEventDay
 import com.example.sociable.ui.common.formatPriceText
 import com.example.sociable.ui.common.formatSpots
@@ -40,6 +41,8 @@ fun EventCard(
     event: Event,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Distância do aparelho até o evento, quando conhecida. */
+    distanceKm: Double? = null,
 ) {
     StickerBox(
         modifier = modifier.fillMaxWidth(),
@@ -54,7 +57,13 @@ fun EventCard(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (event.isSecret) "🔒 Chat da Cidade" else event.category.label,
+                        text = if (event.isSecret) {
+                            "🔒 Chat da Cidade"
+                        } else if (distanceKm != null) {
+                            "${event.category.label} · ${formatDistance(distanceKm)}"
+                        } else {
+                            event.category.label
+                        },
                         color = SociableTheme.muted,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,

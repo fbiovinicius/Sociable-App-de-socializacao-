@@ -5,6 +5,7 @@ package com.example.sociable.data.firebase
 import com.example.sociable.core.AppError
 import com.example.sociable.core.AppResult
 import com.example.sociable.core.time.TimeProvider
+import com.example.sociable.data.model.Attendee
 import com.example.sociable.data.model.Event
 import com.example.sociable.data.model.EventDraft
 import com.example.sociable.data.model.EventFilter
@@ -17,6 +18,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.CancellationException
@@ -40,6 +42,9 @@ import java.util.UUID
  *    e os filtros de texto/categoria são aplicados em memória com [matches];
  *    paginação, busca full-text e geohash ficam para uma etapa posterior;
  *  - `goingCount` é atualizado em transação junto com o documento de RSVP;
+ *  - cada RSVP também escreve (ou apaga) o documento público em
+ *    `events/{id}/attendees/{userId}`, que alimenta a prévia de participantes
+ *    mostrada no mapa;
  *  - o local de um segredinho fica em `events/{id}/private/location` e só é
  *    mesclado ao modelo quando o usuário é o organizador ou já confirmou presença.
  */
@@ -51,6 +56,9 @@ class FirestoreEventRepository(
 
     private val events: CollectionReference
         get() = firestore.collection(COLLECTION_EVENTS)
+
+    private val users: CollectionReference
+        get() = firestore.collection(COLLECTION_USERS)
 
     override fun observeEvents(filter: EventFilter): Flow<List<Event>> = callbackFlow {
         val query = events
@@ -112,6 +120,66 @@ class FirestoreEventRepository(
         AppResult.Failure(exception.toFirebaseAppError(), exception)
     }
 
+    override suspend fun updateEvent(eventId: String, draft: EventDraft): AppResult<Event> = try {
+        val eventReference = events.document(eventId)
+        val outcome = firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(eventReference)
+            if (!snapshot.exists()) {
+                return@runTransaction UpdateOutcome.Missing
+            }
+            val data = snapshot.data.orEmpty()
+            if (data[EventFields.ORGANIZER_ID] != draft.organizerId) {
+                return@runTransaction UpdateOutcome.Forbidden
+            }
+            if (data[EventFields.STATUS] == EventStatus.CANCELLED.name) {
+                return@runTransaction UpdateOutcome.Invalid
+            }
+            val goingCount = (data[EventFields.GOING_COUNT] as? Number)?.toInt() ?: 0
+            if (draft.capacity != null && draft.capacity < goingCount) {
+                return@runTransaction UpdateOutcome.Invalid
+            }
+
+            // Segredinho continua segredinho: a condição vem do documento, não do formulário.
+            val isSecret = data[EventFields.IS_SECRET] as? Boolean ?: false
+            val edited = draft.copy(isSecret = isSecret)
+                .toPublicEvent(id = eventId, createdAt = timeProvider.now())
+
+            transaction.update(
+                eventReference,
+                edited.toEditableFieldsMap(includeLocation = !isSecret),
+            )
+            if (isSecret) {
+                transaction.set(
+                    eventReference.collection(SUBCOLLECTION_PRIVATE).document(PRIVATE_LOCATION_DOCUMENT),
+                    draft.toPrivateLocationMap(),
+                )
+            }
+            UpdateOutcome.Done
+        }.await()
+
+        when (outcome) {
+            UpdateOutcome.Done -> getEvent(eventId)
+            UpdateOutcome.Missing -> AppResult.Failure(AppError.NOT_FOUND)
+            UpdateOutcome.Forbidden -> AppResult.Failure(AppError.PERMISSION_DENIED)
+            UpdateOutcome.Invalid -> AppResult.Failure(AppError.INVALID_INPUT)
+        }
+    } catch (exception: CancellationException) {
+        throw exception
+    } catch (exception: Exception) {
+        AppResult.Failure(exception.toFirebaseAppError(), exception)
+    }
+
+    override suspend fun cancelEvent(eventId: String): AppResult<Unit> = try {
+        events.document(eventId)
+            .update(EventFields.STATUS, EventStatus.CANCELLED.name)
+            .await()
+        AppResult.Success(Unit)
+    } catch (exception: CancellationException) {
+        throw exception
+    } catch (exception: Exception) {
+        AppResult.Failure(exception.toFirebaseAppError(), exception)
+    }
+
     override suspend fun setRsvp(
         eventId: String,
         userId: String,
@@ -120,20 +188,56 @@ class FirestoreEventRepository(
         val outcome = firestore.runTransaction { transaction ->
             val eventReference = events.document(eventId)
             val rsvpReference = eventReference.collection(SUBCOLLECTION_RSVPS).document(userId)
+            val attendeeReference = eventReference
+                .collection(SUBCOLLECTION_ATTENDEES)
+                .document(userId)
 
+            // Todas as leituras precisam acontecer antes de qualquer escrita em
+            // uma transação do Firestore.
             val eventSnapshot = transaction.get(eventReference)
             if (!eventSnapshot.exists()) {
                 return@runTransaction RsvpTransactionResult.Missing
             }
 
             val alreadyGoing = transaction.get(rsvpReference).exists()
+            val attendeeExists = transaction.get(attendeeReference).exists()
             val goingCount = eventSnapshot.getLong(EventFields.GOING_COUNT)?.toInt() ?: 0
             val capacity = eventSnapshot.getLong(EventFields.CAPACITY)?.toInt()
+            val attendeeMap = if (going) {
+                val profileSnapshot = transaction.get(users.document(userId))
+                val attendee = Attendee(
+                    userId = userId,
+                    name = profileSnapshot.getString(AttendeeFields.NAME).orEmpty(),
+                    photoUrl = profileSnapshot.getString(AttendeeFields.PHOTO_URL),
+                )
+                attendee.toAttendeeMap(FieldValue.serverTimestamp())
+            } else {
+                emptyMap()
+            }
 
             when {
-                going == alreadyGoing -> RsvpTransactionResult.Done(
-                    RsvpInfo(goingCount = goingCount, isGoing = alreadyGoing, capacity = capacity)
-                )
+                going == alreadyGoing -> {
+                    // Recupera uma prévia ausente ou remove um documento antigo
+                    // sem alterar o RSVP e o contador já consistentes.
+                    if (going) {
+                        if (attendeeExists) {
+                            transaction.update(
+                                attendeeReference,
+                                AttendeeFields.NAME,
+                                attendeeMap[AttendeeFields.NAME],
+                                AttendeeFields.PHOTO_URL,
+                                attendeeMap[AttendeeFields.PHOTO_URL],
+                            )
+                        } else {
+                            transaction.set(attendeeReference, attendeeMap)
+                        }
+                    } else if (attendeeExists) {
+                        transaction.delete(attendeeReference)
+                    }
+                    RsvpTransactionResult.Done(
+                        RsvpInfo(goingCount = goingCount, isGoing = alreadyGoing, capacity = capacity)
+                    )
+                }
 
                 going && capacity != null && goingCount >= capacity ->
                     RsvpTransactionResult.Full
@@ -141,6 +245,17 @@ class FirestoreEventRepository(
                 going -> {
                     transaction.set(rsvpReference, newRsvpDocument(userId))
                     transaction.update(eventReference, EventFields.GOING_COUNT, goingCount + 1)
+                    if (attendeeExists) {
+                        transaction.update(
+                            attendeeReference,
+                            AttendeeFields.NAME,
+                            attendeeMap[AttendeeFields.NAME],
+                            AttendeeFields.PHOTO_URL,
+                            attendeeMap[AttendeeFields.PHOTO_URL],
+                        )
+                    } else {
+                        transaction.set(attendeeReference, attendeeMap)
+                    }
                     RsvpTransactionResult.Done(
                         RsvpInfo(goingCount = goingCount + 1, isGoing = true, capacity = capacity)
                     )
@@ -150,6 +265,7 @@ class FirestoreEventRepository(
                     transaction.delete(rsvpReference)
                     val nextCount = (goingCount - 1).coerceAtLeast(0)
                     transaction.update(eventReference, EventFields.GOING_COUNT, nextCount)
+                    if (attendeeExists) transaction.delete(attendeeReference)
                     RsvpTransactionResult.Done(
                         RsvpInfo(goingCount = nextCount, isGoing = false, capacity = capacity)
                     )
@@ -182,6 +298,27 @@ class FirestoreEventRepository(
                 capacity = (data[EventFields.CAPACITY] as? Number)?.toInt(),
             )
         }
+    }
+
+    /**
+     * Prévia de quem confirmou presença: documentos públicos em
+     * `events/{id}/attendees`, em ordem de chegada (mais recentes no fim).
+     */
+    override fun observeAttendees(eventId: String): Flow<List<Attendee>> = callbackFlow {
+        val registration = events.document(eventId)
+            .collection(SUBCOLLECTION_ATTENDEES)
+            .orderBy(AttendeeFields.CREATED_AT, Query.Direction.ASCENDING)
+            .limit(ATTENDEE_LIMIT)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                val attendees = snapshot?.documents.orEmpty().mapNotNull { it.toDomainAttendee() }
+                trySend(attendees)
+            }
+
+        awaitClose { registration.remove() }
     }
 
     /**
@@ -246,6 +383,8 @@ class FirestoreEventRepository(
         FIELD_CHECK_IN_TOKEN to UUID.randomUUID().toString(),
     )
 
+    private enum class UpdateOutcome { Done, Missing, Forbidden, Invalid }
+
     private sealed interface RsvpTransactionResult {
         data class Done(val info: RsvpInfo) : RsvpTransactionResult
         data object Full : RsvpTransactionResult
@@ -254,10 +393,13 @@ class FirestoreEventRepository(
 
     private companion object {
         const val COLLECTION_EVENTS = "events"
+        const val COLLECTION_USERS = "users"
         const val SUBCOLLECTION_RSVPS = "rsvps"
+        const val SUBCOLLECTION_ATTENDEES = "attendees"
         const val SUBCOLLECTION_PRIVATE = "private"
         const val PRIVATE_LOCATION_DOCUMENT = "location"
         const val FEED_LIMIT = 200L
+        const val ATTENDEE_LIMIT = 30L
 
         const val FIELD_USER_ID = "userId"
         const val FIELD_CREATED_AT = "createdAt"

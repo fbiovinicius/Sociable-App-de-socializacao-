@@ -45,6 +45,8 @@ Saber o que está acontecendo na cidade ainda é difícil:
 - Mapa interativo com Google Maps Compose e pinos por categoria.
 - Busca e atalhos *Agora*, *Gratuitos*, *Música*, *Gastronomia*, *Esporte* e *Cultura*.
 - Zoom, arraste e card do evento selecionado com acesso ao detalhe.
+- Card do evento mostra **quem vai**: número de pessoas confirmadas e prévia das fotos de perfil.
+- **Compartilhar** o evento (menu de compartilhamento do Android) e **denunciar** (motivo + comentário).
 - Eventos "Segredinhos" ficam fora do mapa para não revelar o local.
 
 **Segredinhos**
@@ -54,6 +56,8 @@ Saber o que está acontecendo na cidade ainda é difícil:
 **Evento**
 - Detalhe com descrição, local, horário, preço, vagas e avaliações.
 - Confirmar/cancelar presença ("Eu vou!"); o local secreto só aparece para quem confirmou.
+- Distância até o evento (em km, em linha reta) no card do feed e no detalhe, usando a localização do aparelho; segredinhos só mostram a distância depois de confirmar presença.
+- O organizador pode editar e cancelar o evento pelo detalhe. Evento cancelado sai do feed e do mapa e mostra um aviso para quem já o conhecia.
 - **Lembrete local**: ao confirmar presença, o app agenda um aviso 1 h antes do rolê
   (WorkManager + notificação local; funciona offline e sobrevive a reiniciar o aparelho).
 - Chat por evento e avaliações com estrelas.
@@ -89,8 +93,9 @@ MVP com lógica MVVM e UI em Compose integradas:
 - [x] Chat e avaliações persistidos no Firestore
 - [ ] Google Sign-In
 
-A autenticação, o perfil, os eventos, o RSVP, o chat e as avaliações já usam Firebase.
-Publique o `firestore.rules` do repositório antes de rodar esta versão. O guia de backend está em
+A autenticação, o perfil, os eventos, o RSVP, o chat, as avaliações e as denúncias já usam Firebase.
+Publique o `firestore.rules` do repositório antes de rodar esta versão (ele cobre também a prévia de
+participantes e a coleção de denúncias). O guia de backend está em
 [docs/INTEGRACAO_BACKEND.md](docs/INTEGRACAO_BACKEND.md).
 
 ### Rodando

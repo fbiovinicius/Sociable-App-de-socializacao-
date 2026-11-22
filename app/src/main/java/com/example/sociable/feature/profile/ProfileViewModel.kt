@@ -146,7 +146,7 @@ class ProfileViewModel(
         val state = _uiState.value
         val nameError = Validators.name(state.name)
         val bioError = Validators.bio(state.bio)
-        val photoUrlError = Validators.imageUrl(state.photoUrl)
+        val photoUrlError = Validators.photoUrl(state.photoUrl)
 
         if (nameError != null || bioError != null || photoUrlError != null) {
             _uiState.update {

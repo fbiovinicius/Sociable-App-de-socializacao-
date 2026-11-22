@@ -2,6 +2,7 @@ package com.example.sociable.ui.events
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -57,6 +60,7 @@ import java.time.LocalDate
 fun CreateEventScreen(
     viewModel: CreateEventViewModel,
     startAsSecret: Boolean = false,
+    editEventId: String? = null,
     onCreated: (String) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -149,8 +153,12 @@ fun CreateEventScreen(
         )
     }
 
-    LaunchedEffect(startAsSecret) {
-        if (startAsSecret) viewModel.onSecretChange(true)
+    LaunchedEffect(startAsSecret, editEventId) {
+        if (editEventId != null) {
+            viewModel.loadForEdit(editEventId)
+        } else if (startAsSecret) {
+            viewModel.onSecretChange(true)
+        }
     }
 
     LaunchedEffect(state.createdEventId) {
@@ -169,7 +177,22 @@ fun CreateEventScreen(
     ) {
         BackLink(onBack)
         Spacer(modifier = Modifier.height(8.dp))
-        ScreenTitle("Criar evento", sub = "Conte o que vai rolar")
+        ScreenTitle(
+            if (editEventId != null) "Editar evento" else "Criar evento",
+            sub = if (editEventId != null) "Ajuste o que mudou" else "Conte o que vai rolar",
+        )
+
+        if (state.isLoadingEvent) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 48.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = SociableTheme.ink)
+            }
+            return@Column
+        }
 
         FormTextField(
             value = state.title,
@@ -392,7 +415,7 @@ fun CreateEventScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         SociableButton(
-            text = "Publicar evento",
+            text = if (editEventId != null) "Salvar alterações" else "Publicar evento",
             onClick = viewModel::onSubmit,
             isLoading = state.isLoading,
         )

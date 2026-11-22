@@ -4,6 +4,16 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -50,4 +60,35 @@ internal suspend fun Context.currentLatLngOrNull(): LatLng? {
     } catch (_: Exception) {
         null
     }
+}
+
+/**
+ * Posição do aparelho como estado de Compose, para mostrar a distância até os eventos.
+ * Fica `null` sem permissão, sem GPS ou enquanto a leitura não termina.
+ * Com [requestPermission], pede a permissão uma vez ao abrir a tela.
+ */
+@Composable
+internal fun rememberUserLocation(requestPermission: Boolean = false): State<LatLng?> {
+    val context = LocalContext.current
+    var granted by remember { mutableStateOf(context.hasLocationPermission()) }
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { granted = context.hasLocationPermission() }
+
+    LaunchedEffect(requestPermission) {
+        if (requestPermission && !granted) {
+            launcher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                ),
+            )
+        }
+    }
+
+    val location = remember { mutableStateOf<LatLng?>(null) }
+    LaunchedEffect(granted) {
+        location.value = if (granted) context.currentLatLngOrNull() else null
+    }
+    return location
 }
