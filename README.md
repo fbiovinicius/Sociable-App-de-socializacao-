@@ -105,15 +105,34 @@ Firebase Authentication do projeto.
 
 ### Google Maps
 
-O mapa usa o Maps SDK for Android. Para ele aparecer, crie uma chave de API (com o
-**Maps SDK for Android** ativado no Google Cloud) e adicione no `local.properties`
-(arquivo ignorado pelo Git):
+O mapa usa o Maps SDK for Android. A chave compartilhada do grupo fica em
+`gradle.properties` (`MAPS_API_KEY`), então quem clona o projeto já tem o mapa funcionando.
+Para usar outra chave só na sua máquina, adicione no `local.properties` (ignorado pelo Git):
 
 ```properties
 MAPS_API_KEY=sua_chave_aqui
 ```
 
-Sem a chave o app compila e roda, mas o mapa fica em branco.
+O `local.properties` tem prioridade. Sem nenhuma chave o app compila e roda, mas o mapa fica em
+branco, e o build avisa disso.
+
+A chave é restrita no Google Cloud ao pacote `com.example.sociable`, ao SHA-1 da keystore de debug
+do projeto e à **Maps SDK for Android**.
+
+### Keystore de debug compartilhada
+
+O app de teste é assinado com `app/debug.keystore`, que vai no repositório de propósito. Assim todo
+mundo tem o mesmo SHA-1, e uma só impressão digital vale para o Maps e para o Firebase em qualquer
+computador. Ela só assina builds de teste. A assinatura de release (Play Store) nunca vai para o Git.
+
+SHA-1 da keystore de debug:
+
+```
+FE:57:98:EB:4B:C9:C5:86:C0:C7:78:65:71:43:4F:3B:52:CF:17:6C
+```
+
+Se você já tinha o app instalado, desinstale uma vez antes de instalar a versão nova, porque a
+assinatura mudou.
 
 ## Autores
 
