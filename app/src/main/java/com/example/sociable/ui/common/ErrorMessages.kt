@@ -35,4 +35,5 @@ fun ValidationError.message(): String = when (this) {
     ValidationError.END_BEFORE_START -> "O fim deve ser depois do início."
     ValidationError.INVALID_DURATION -> "O evento pode durar no máximo 7 dias."
     ValidationError.INVALID_URL -> "Informe uma URL http(s) válida."
+    ValidationError.CAPACITY_BELOW_GOING -> "Já há mais pessoas confirmadas do que esse limite."
 }
