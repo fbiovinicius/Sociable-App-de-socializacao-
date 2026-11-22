@@ -1,6 +1,7 @@
 package com.example.sociable.ui.events
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -263,6 +264,47 @@ fun CreateEventScreen(
             label = if (state.isSecret) "Endereço (revelado aos convidados)" else "Endereço",
             error = state.addressError,
         )
+        if (state.addressSuggestions.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(6.dp))
+            StickerBox(
+                modifier = Modifier.fillMaxWidth(),
+                fill = SociableTheme.chip,
+                radius = 14.dp,
+                contentPadding = PaddingValues(vertical = 4.dp),
+            ) {
+                Column {
+                    state.addressSuggestions.forEach { suggestion ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.onAddressSuggestionSelected(suggestion) }
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                        ) {
+                            Text(
+                                text = "📍 ${suggestion.primaryText}",
+                                color = SociableTheme.ink,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                            )
+                            if (suggestion.secondaryText.isNotBlank()) {
+                                Text(
+                                    text = suggestion.secondaryText,
+                                    color = SociableTheme.ink,
+                                    fontSize = 12.sp,
+                                )
+                            }
+                        }
+                    }
+                    // Exigência dos termos do Google ao mostrar sugestões em tela própria.
+                    Text(
+                        text = "Powered by Google",
+                        color = SociableTheme.ink,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
+                    )
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(12.dp))
         val pickedPoint = state.latitude.toDoubleOrNull()?.let { lat ->
             state.longitude.toDoubleOrNull()?.let { lng -> LatLng(lat, lng) }

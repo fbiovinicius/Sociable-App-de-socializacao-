@@ -17,6 +17,8 @@ import com.example.sociable.data.firebase.FirestoreReportRepository
 import com.example.sociable.data.firebase.FirestoreReviewRepository
 import com.example.sociable.data.firebase.FirestoreUserRepository
 import com.example.sociable.data.notifications.WorkManagerReminderScheduler
+import com.example.sociable.data.places.AddressSearch
+import com.example.sociable.data.places.GooglePlacesAddressSearch
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.example.sociable.feature.auth.LoginViewModel
@@ -59,6 +61,9 @@ val appModule = module {
 
     // Denúncias de eventos (coleção `reports`; leitura bloqueada no cliente).
     single<ReportRepository> { FirestoreReportRepository(get()) }
+
+    // Sugestões de endereço ao digitar (Google Places).
+    single<AddressSearch> { GooglePlacesAddressSearch(androidContext()) }
 
     // Lembretes locais (bloco F1).
     single<ReminderScheduler> { WorkManagerReminderScheduler(androidContext()) }
