@@ -2,6 +2,7 @@ package com.example.sociable.ui.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -50,6 +51,7 @@ import com.example.sociable.ui.common.ProgressRingAvatar
 import com.example.sociable.ui.common.ScreenTitle
 import com.example.sociable.ui.common.SectionTitle
 import com.example.sociable.ui.common.SociableButton
+import com.example.sociable.ui.common.rememberPhotoPicker
 import com.example.sociable.ui.common.SociableChip
 import com.example.sociable.ui.theme.SociableTheme
 import com.example.sociable.ui.theme.ThemeController
@@ -66,9 +68,8 @@ fun ProfileScreen(
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
     // Os botões do topo rolam até o campo e abrem o teclado nele.
-    val photoFocus = remember { FocusRequester() }
+    val pickPhoto = rememberPhotoPicker(onPicked = viewModel::onPhotoPicked)
     val instagramFocus = remember { FocusRequester() }
-    var photoFieldY by remember { mutableFloatStateOf(0f) }
     var instagramFieldY by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(state.isSignedOut) {
@@ -133,12 +134,7 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(12.dp))
             SociableButton(
                 text = "Adicionar sua foto de perfil",
-                onClick = {
-                    scope.launch {
-                        scrollState.animateScrollTo(photoFieldY.toInt())
-                        photoFocus.requestFocus()
-                    }
-                },
+                onClick = pickPhoto,
                 secondary = true,
             )
         }
@@ -162,16 +158,30 @@ fun ProfileScreen(
             minLines = 3,
         )
         Spacer(modifier = Modifier.height(12.dp))
-        FormTextField(
-            value = state.photoUrl,
-            onValueChange = viewModel::onPhotoUrlChange,
-            label = "URL da foto HTTPS (opcional)",
-            error = state.photoUrlError,
-            keyboardType = KeyboardType.Uri,
-            modifier = Modifier
-                .focusRequester(photoFocus)
-                .onGloballyPositioned { photoFieldY = it.positionInParent().y },
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = if (state.photoUrl.isBlank()) "Foto de perfil (opcional)" else "Foto de perfil (toque em Salvar para aplicar)",
+                color = SociableTheme.muted,
+                fontSize = 13.sp,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SociableButton(
+                    text = if (state.photoUrl.isBlank()) "Escolher da galeria" else "Trocar foto",
+                    onClick = pickPhoto,
+                    secondary = true,
+                    isLoading = state.isUploadingPhoto,
+                    modifier = Modifier.weight(1f),
+                )
+                if (state.photoUrl.isNotBlank() && !state.isUploadingPhoto) {
+                    SociableButton(
+                        text = "Remover",
+                        onClick = viewModel::onPhotoRemove,
+                        secondary = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(12.dp))
         FormTextField(
             value = state.instagram,

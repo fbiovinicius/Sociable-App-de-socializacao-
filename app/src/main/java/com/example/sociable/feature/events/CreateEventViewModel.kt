@@ -15,6 +15,8 @@ import com.example.sociable.data.places.AddressSearch
 import com.example.sociable.data.places.AddressSuggestion
 import com.example.sociable.data.repository.AuthRepository
 import com.example.sociable.data.repository.EventRepository
+import com.example.sociable.data.repository.PhotoKind
+import com.example.sociable.data.repository.PhotoUploader
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,6 +65,7 @@ data class CreateEventUiState(
     val priceError: ValidationError? = null,
     val capacityError: ValidationError? = null,
     val imageUrlError: ValidationError? = null,
+    val isUploadingImage: Boolean = false,
     val periodError: ValidationError? = null,
     val isLoading: Boolean = false,
     val error: AppError? = null,
@@ -81,6 +84,7 @@ class CreateEventViewModel(
     private val eventRepository: EventRepository,
     private val authRepository: AuthRepository,
     private val addressSearch: AddressSearch,
+    private val photoUploader: PhotoUploader,
     timeProvider: TimeProvider,
 ) : ViewModel() {
 
@@ -345,8 +349,28 @@ class CreateEventViewModel(
         _uiState.update { it.copy(capacity = value, capacityError = null, error = null) }
     }
 
-    fun onImageUrlChange(value: String) {
-        _uiState.update { it.copy(imageUrl = value, imageUrlError = null, error = null) }
+    /**
+     * Capa escolhida na galeria. Só quem cria o evento (ou o organizador, na edição —
+     * [loadForEdit] já recusa quem não é) chega a esta tela, então só ele envia a foto.
+     */
+    fun onImagePicked(localUri: String) {
+        if (_uiState.value.isUploadingImage) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUploadingImage = true, imageUrlError = null, error = null) }
+            when (val result = photoUploader.upload(PhotoKind.EVENT, localUri)) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(isUploadingImage = false, imageUrl = result.data)
+                }
+
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isUploadingImage = false, error = result.error)
+                }
+            }
+        }
+    }
+
+    fun onImageRemove() {
+        _uiState.update { it.copy(imageUrl = "", imageUrlError = null, error = null) }
     }
 
     fun onEmojiChange(value: String) {
@@ -355,6 +379,7 @@ class CreateEventViewModel(
 
     fun onSubmit() {
         val state = _uiState.value
+        if (state.isUploadingImage) return
         val titleError = Validators.eventTitle(state.title)
         val descriptionError = Validators.eventDescription(state.description)
         val addressError = Validators.place(state.address)

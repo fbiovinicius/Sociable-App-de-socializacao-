@@ -14,6 +14,9 @@ import com.example.sociable.data.repository.SavedEventRepository
 import com.example.sociable.data.repository.UserRepository
 import com.example.sociable.data.firebase.FirebaseAuthRepository
 import com.example.sociable.data.firebase.FirestoreChatRepository
+import com.example.sociable.data.firebase.FirebaseStoragePhotoUploader
+import com.example.sociable.data.repository.PhotoUploader
+import com.google.firebase.storage.FirebaseStorage
 import com.example.sociable.data.firebase.FirestoreCommunityRepository
 import com.example.sociable.data.firebase.FirestoreEventRepository
 import com.example.sociable.data.firebase.FirestoreReportRepository
@@ -64,6 +67,10 @@ val appModule = module {
     // Chat e avaliações persistidos no Cloud Firestore.
     single<ChatRepository> { FirestoreChatRepository(get(), get()) }
     single<ReviewRepository> { FirestoreReviewRepository(get(), get()) }
+
+    // Envio de fotos (perfil e capa de evento) para o Firebase Storage.
+    single { FirebaseStorage.getInstance() }
+    single<PhotoUploader> { FirebaseStoragePhotoUploader(androidContext(), get(), get()) }
 
     // Eventos salvos (favoritos) de cada pessoa.
     single<SavedEventRepository> { FirestoreSavedEventRepository(get()) }

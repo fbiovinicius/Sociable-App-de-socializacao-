@@ -13,6 +13,8 @@ import com.example.sociable.data.model.LookingFor
 import com.example.sociable.data.model.LookingForRules
 import com.example.sociable.data.model.SocialVibe
 import com.example.sociable.data.repository.AuthRepository
+import com.example.sociable.data.repository.PhotoKind
+import com.example.sociable.data.repository.PhotoUploader
 import com.example.sociable.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +41,7 @@ data class ProfileUiState(
     val instagramError: ValidationError? = null,
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
+    val isUploadingPhoto: Boolean = false,
     val error: AppError? = null,
     val isSaved: Boolean = false,
     val isSignedOut: Boolean = false,
@@ -51,6 +54,7 @@ data class ProfileUiState(
 class ProfileViewModel(
     private val userRepository: UserRepository,
     private val authRepository: AuthRepository,
+    private val photoUploader: PhotoUploader,
 ) : ViewModel() {
 
     private val userId: String? = authRepository.currentUser.value?.id
@@ -103,8 +107,25 @@ class ProfileViewModel(
         _uiState.update { it.copy(bio = value, bioError = null, error = null, isSaved = false) }
     }
 
-    fun onPhotoUrlChange(value: String) {
-        _uiState.update { it.copy(photoUrl = value, photoUrlError = null, error = null, isSaved = false) }
+    /** Foto escolhida na galeria: envia e guarda a URL; só vale no perfil depois de salvar. */
+    fun onPhotoPicked(localUri: String) {
+        if (_uiState.value.isUploadingPhoto) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUploadingPhoto = true, photoUrlError = null, error = null) }
+            when (val result = photoUploader.upload(PhotoKind.PROFILE, localUri)) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(isUploadingPhoto = false, photoUrl = result.data, isSaved = false)
+                }
+
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isUploadingPhoto = false, error = result.error)
+                }
+            }
+        }
+    }
+
+    fun onPhotoRemove() {
+        _uiState.update { it.copy(photoUrl = "", photoUrlError = null, error = null, isSaved = false) }
     }
 
     fun onInstagramChange(value: String) {
@@ -158,6 +179,7 @@ class ProfileViewModel(
             return
         }
         val state = _uiState.value
+        if (state.isUploadingPhoto) return
         val nameError = Validators.name(state.name)
         val bioError = Validators.bio(state.bio)
         val photoUrlError = Validators.photoUrl(state.photoUrl)

@@ -180,7 +180,7 @@ private fun rememberRemoteImage(url: String?): ImageBitmap? {
 }
 
 private const val MAX_REMOTE_IMAGE_BYTES = 2 * 1024 * 1024
-private const val MAX_DECODED_IMAGE_SIZE = 256
+private const val MAX_DECODED_IMAGE_SIZE = 640
 private const val IMAGE_CONNECT_TIMEOUT_MS = 10_000
 private const val IMAGE_READ_TIMEOUT_MS = 15_000
 private const val MAX_IMAGE_REDIRECTS = 3
@@ -274,6 +274,20 @@ private object RemoteImageCache {
     @Synchronized
     fun put(url: String, image: ImageBitmap) {
         entries[url] = image
+    }
+}
+
+/** Imagem remota preenchendo a área (capa de evento). Sem URL ou se falhar, não desenha nada. */
+@Composable
+fun RemoteImage(url: String?, contentDescription: String?, modifier: Modifier = Modifier) {
+    val image = rememberRemoteImage(url?.takeIf { it.isNotBlank() })
+    if (image != null) {
+        Image(
+            bitmap = image,
+            contentDescription = contentDescription,
+            contentScale = ContentScale.Crop,
+            modifier = modifier,
+        )
     }
 }
 

@@ -54,7 +54,9 @@ import com.example.sociable.ui.common.formatPriceText
 import com.example.sociable.ui.common.formatSpots
 import com.example.sociable.ui.common.pinRes
 import com.example.sociable.ui.theme.SociableTheme
-import com.example.sociable.ui.common.AddImageBox
+import com.example.sociable.ui.common.RemoteImage
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 
 @Composable
 fun EventDetailScreen(
@@ -131,15 +133,18 @@ fun EventDetailScreen(
                     BackLink(onBack)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Capa do evento. Por enquanto só visual: trocar a imagem depende
-                    // de suporte na EventDetailViewModel (fora do escopo de UI).
-                    AddImageBox(
-                        title = "Adicionar imagem do evento",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(168.dp),
+                    // Capa do evento. A foto só é trocada na edição, que é exclusiva do organizador.
+                    if (!event.imageUrl.isNullOrBlank()) {
+                        RemoteImage(
+                            url = event.imageUrl,
+                            contentDescription = "Capa de ${event.title}",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(168.dp)
+                                .clip(RoundedCornerShape(18.dp)),
                         )
-                    Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Pin(pinRes(event.category, event.isSecret), size = 56.dp)

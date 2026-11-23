@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.storage.StorageException
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -20,6 +21,14 @@ internal fun Throwable.toFirebaseAppError(): AppError = when (this) {
         FirebaseFirestoreException.Code.NOT_FOUND -> AppError.NOT_FOUND
         FirebaseFirestoreException.Code.UNAVAILABLE,
         FirebaseFirestoreException.Code.DEADLINE_EXCEEDED -> AppError.NETWORK
+        else -> AppError.UNKNOWN
+    }
+    is StorageException -> when (errorCode) {
+        StorageException.ERROR_NOT_AUTHORIZED,
+        StorageException.ERROR_NOT_AUTHENTICATED -> AppError.PERMISSION_DENIED
+        StorageException.ERROR_OBJECT_NOT_FOUND,
+        StorageException.ERROR_BUCKET_NOT_FOUND -> AppError.NOT_FOUND
+        StorageException.ERROR_RETRY_LIMIT_EXCEEDED -> AppError.NETWORK
         else -> AppError.UNKNOWN
     }
     is UnknownHostException, is SocketTimeoutException, is IOException -> AppError.NETWORK
