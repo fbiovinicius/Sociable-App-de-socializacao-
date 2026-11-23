@@ -78,6 +78,7 @@ service cloud.firestore {
     function validProfileFields(data) {
       let name = data.get('name', '');
       let photoUrl = data.get('photoUrl', null);
+      let instagram = data.get('instagram', '');
       return name is string
         && name.size() >= 2
         && name.size() <= 60
@@ -88,7 +89,9 @@ service cloud.firestore {
             && photoUrl.size() <= 500
             && photoUrl.matches('https://.+')
           )
-        );
+        )
+        && instagram is string
+        && instagram.size() <= 30;
     }
 
     function goingCountMatchesOwnRsvp(eventId) {

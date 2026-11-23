@@ -24,6 +24,7 @@ interface UserRepository {
         bio: String,
         photoUrl: String?,
         interests: Set<Interest>,
+        instagram: String = "",
     ): AppResult<User>
 
     /**

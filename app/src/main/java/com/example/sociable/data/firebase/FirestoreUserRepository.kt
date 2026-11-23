@@ -3,6 +3,7 @@ package com.example.sociable.data.firebase
 import android.net.Uri
 import com.example.sociable.core.AppError
 import com.example.sociable.core.AppResult
+import com.example.sociable.core.validation.Validators
 import com.example.sociable.data.model.Interest
 import com.example.sociable.data.model.LifeStage
 import com.example.sociable.data.model.LookingFor
@@ -43,6 +44,7 @@ class FirestoreUserRepository(
         bio: String,
         photoUrl: String?,
         interests: Set<Interest>,
+        instagram: String,
     ): AppResult<User> {
         return try {
             val document = firestore.collection(USERS).document(userId)
@@ -55,6 +57,7 @@ class FirestoreUserRepository(
                 bio = bio.trim(),
                 photoUrl = photoUrl?.trim()?.takeIf { it.isNotEmpty() },
                 interests = interests,
+                instagram = Validators.normalizeInstagram(instagram),
             )
 
             // Mantém o nome e a foto do Firebase Authentication sincronizados com o perfil.

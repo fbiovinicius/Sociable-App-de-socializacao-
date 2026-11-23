@@ -12,6 +12,8 @@ data class User(
     val email: String,
     val bio: String = "",
     val photoUrl: String? = null,
+    /** Usuário do Instagram, sem o "@". Vazio quando não informado. */
+    val instagram: String = "",
     val interests: Set<Interest> = emptySet(),
     val lifeStage: LifeStage? = null,
     val lookingFor: Set<LookingFor> = emptySet(),

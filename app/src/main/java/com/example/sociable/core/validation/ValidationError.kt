@@ -17,4 +17,5 @@ enum class ValidationError {
     INVALID_DURATION,
     INVALID_URL,
     CAPACITY_BELOW_GOING,
+    INVALID_HANDLE,
 }

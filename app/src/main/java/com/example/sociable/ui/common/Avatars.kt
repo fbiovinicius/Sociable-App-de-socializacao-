@@ -276,3 +276,24 @@ private object RemoteImageCache {
         entries[url] = image
     }
 }
+
+/**
+ * Conteúdo do avatar do próprio perfil: a foto, quando há URL e ela carrega, ou o pino
+ * com carinha. Entra dentro do [ProgressRingAvatar].
+ */
+@Composable
+fun ProfilePhotoOrPin(photoUrl: String?, size: Dp = 88.dp) {
+    val photo = rememberRemoteImage(photoUrl?.takeIf { it.isNotBlank() })
+    if (photo != null) {
+        Image(
+            bitmap = photo,
+            contentDescription = "Sua foto de perfil",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(size)
+                .clip(CircleShape),
+        )
+    } else {
+        Pin(com.example.sociable.R.drawable.ic_pin_party, size = size)
+    }
+}
