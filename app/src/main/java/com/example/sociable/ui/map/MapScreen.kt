@@ -53,7 +53,6 @@ import com.example.sociable.feature.map.MapMarker
 import com.example.sociable.feature.map.MapViewModel
 import com.example.sociable.ui.common.ErrorText
 import com.example.sociable.ui.common.AttendeeAvatarStack
-import com.example.sociable.ui.common.Pin
 import com.example.sociable.ui.common.SociableButton
 import com.example.sociable.ui.common.SociableChip
 import com.example.sociable.ui.common.StickerBox
@@ -61,7 +60,6 @@ import com.example.sociable.ui.common.formatEventDay
 import com.example.sociable.ui.common.formatPriceText
 import com.example.sociable.ui.common.formatSpots
 import com.example.sociable.ui.common.message
-import com.example.sociable.ui.common.pinRes
 import com.example.sociable.ui.theme.SociableTheme
 import com.example.sociable.ui.theme.isSociableDarkTheme
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -75,6 +73,7 @@ import com.google.maps.android.compose.MarkerComposable
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
 import kotlinx.coroutines.launch
+import com.example.sociable.ui.common.EmojiPin
 
 
 /* Mapa do Google (Maps Compose). A chave de API vem de MAPS_API_KEY em local.properties
@@ -239,7 +238,7 @@ fun MapScreen(
                 val isSelected = marker.eventId == selected?.eventId
                 MarkerComposable(
                     marker.eventId,
-                    marker.category,
+                    marker.emoji,
                     isSelected,
                     state = rememberMarkerState(
                         key = marker.eventId,
@@ -251,9 +250,10 @@ fun MapScreen(
                         true
                     },
                 ) {
-                    Pin(
-                        id = pinRes(marker.category, isSecret = false),
-                        size = if (isSelected) 52.dp else 40.dp,
+                    EmojiPin(
+                        emoji = marker.emoji,
+                        size = if (isSelected) 52.dp else 42.dp,
+                        highlighted = isSelected,
                         contentDescription = "${marker.title} · ${marker.category.label}",
                     )
                 }
