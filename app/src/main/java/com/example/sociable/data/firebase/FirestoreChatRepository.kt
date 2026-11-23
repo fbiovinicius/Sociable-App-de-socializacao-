@@ -14,6 +14,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 
 /**
@@ -50,6 +51,15 @@ class FirestoreChatRepository(
 
         awaitClose { registration.remove() }
     }
+
+    override fun observeLastMessage(eventId: String): Flow<Message?> =
+        messages(eventId)
+            .orderBy(MessageFields.SENT_AT, Query.Direction.DESCENDING)
+            .limit(1)
+            .snapshotFlow()
+            .map { snapshot ->
+                snapshot.documents.firstNotNullOfOrNull { it.toDomainMessage(eventId) }
+            }
 
     override suspend fun sendMessage(
         eventId: String,

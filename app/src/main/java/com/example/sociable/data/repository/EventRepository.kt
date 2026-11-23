@@ -27,6 +27,12 @@ interface EventRepository {
 
     fun observeEvent(eventId: String): Flow<Event?>
 
+    /**
+     * Eventos que têm chat para a pessoa: os que ela organiza e aqueles em que
+     * confirmou presença (inclui cancelados). Sem ordem definida.
+     */
+    fun observeChatEvents(userId: String): Flow<List<Event>>
+
     suspend fun getEvent(eventId: String): AppResult<Event>
 
     suspend fun createEvent(draft: EventDraft): AppResult<Event>

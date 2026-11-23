@@ -15,6 +15,9 @@ interface ChatRepository {
 
     fun observeMessages(eventId: String): Flow<List<Message>>
 
+    /** Última mensagem do chat (prévia na lista de conversas); `null` se ainda não há nenhuma. */
+    fun observeLastMessage(eventId: String): Flow<Message?>
+
     suspend fun sendMessage(
         eventId: String,
         authorId: String,

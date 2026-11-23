@@ -144,3 +144,17 @@ assinatura mudou.
 - Fábio Vinícius
 - Vinícius de Souza
 - Letícia Manuele
+
+## Mensagens e comunidades (Firestore)
+
+A aba **Mensagens** lista os chats dos eventos em que a pessoa vai (ou que organiza) e as comunidades abertas.
+Ela usa duas consultas de grupo de coleção, que exigem uma **exceção de índice** no Console do Firebase
+(Firestore → Índices → Exceções de campo único → Adicionar exceção):
+
+| ID da coleção | Campo | Escopo | Ativar |
+|---|---|---|---|
+| `rsvps` | `userId` | Grupo de coleções | Crescente |
+| `members` | `userId` | Grupo de coleções | Crescente |
+
+Depois publique o `firestore.rules` atualizado (regras de `communities` e as regras de grupo de coleção).
+Sem a exceção, a lista mostra erro de índice; sem as regras novas, vem "permissão negada".

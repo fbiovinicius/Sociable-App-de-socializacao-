@@ -30,6 +30,11 @@ class FakeEventRepository(
                 .sortedWith(compareBy({ it.startAt }, { it.title }))
         }
 
+    override fun observeChatEvents(userId: String): Flow<List<Event>> =
+        combine(db.events, db.rsvps) { events, rsvps ->
+            events.filter { it.organizerId == userId || userId in rsvps[it.id].orEmpty() }
+        }
+
     override fun observeEvent(eventId: String): Flow<Event?> =
         db.events.map { events -> events.firstOrNull { it.id == eventId } }
 
