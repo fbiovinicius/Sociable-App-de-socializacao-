@@ -39,12 +39,37 @@ import com.example.sociable.ui.common.ErrorText
 import com.example.sociable.ui.common.SociableChip
 import com.example.sociable.ui.map.rememberUserLocation
 import com.example.sociable.ui.theme.SociableTheme
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 
 @Composable
 fun EventListScreen(
     viewModel: EventListViewModel,
     onEventClick: (String) -> Unit,
     onCreateClick: () -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        EventListContent(viewModel = viewModel, onEventClick = onEventClick)
+        CreateFab(
+            onClick = onCreateClick,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 20.dp, bottom = 20.dp),
+        )
+    }
+}
+@Composable
+private fun EventListContent(
+    viewModel: EventListViewModel,
+    onEventClick: (String) -> Unit,
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
     // Pede a localização uma vez para mostrar a distância em cada card.
@@ -75,11 +100,6 @@ fun EventListScreen(
                     fontSize = 14.sp,
                 )
             }
-            SociableChip(
-                text = "+ Criar",
-                selected = true,
-                onClick = onCreateClick,
-            )
         }
 
         OutlinedTextField(
@@ -162,7 +182,7 @@ fun EventListScreen(
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 20.dp, end = 24.dp, top = 12.dp, bottom = 20.dp),
+                    contentPadding = PaddingValues(start = 20.dp, end = 24.dp, top = 12.dp, bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     items(items = state.events, key = { it.id }) { event ->
@@ -179,5 +199,34 @@ fun EventListScreen(
                 }
             }
         }
+    }
+
+}
+
+/** Botão "+" redondo no canto inferior direito, no mesmo estilo adesivo dos outros botões. */
+@Composable
+private fun CreateFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val shadowColor = SociableTheme.shadow
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier
+            .drawBehind {
+                drawCircle(
+                    color = shadowColor,
+                    radius = size.minDimension / 2,
+                    center = Offset(center.x + 4.dp.toPx(), center.y + 4.dp.toPx()),
+                )
+            }
+            .border(3.dp, SociableTheme.ink, CircleShape),
+        shape = CircleShape,
+        containerColor = SociableTheme.accent,
+        contentColor = SociableTheme.onAccent,
+        elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = "Criar evento",
+            modifier = Modifier.size(30.dp),
+        )
     }
 }
