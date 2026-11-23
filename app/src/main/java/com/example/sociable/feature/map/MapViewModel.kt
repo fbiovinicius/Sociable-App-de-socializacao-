@@ -46,6 +46,7 @@ data class MapMarker(
     val price: Double?,
     val goingCount: Int,
     val capacity: Int?,
+    val emoji: String,
 )
 
 data class MapUiState(
@@ -104,6 +105,7 @@ class MapViewModel(
                             price = event.price,
                             goingCount = event.goingCount,
                             capacity = event.capacity,
+                            emoji = event.emoji,
                         )
                     }
                     val currentId = _uiState.value.selectedEventId
