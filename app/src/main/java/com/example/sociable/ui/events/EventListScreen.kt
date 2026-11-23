@@ -150,7 +150,8 @@ private fun EventListContent(
             Spacer(modifier = Modifier.width(10.dp))
             val hasCategories = state.filter.categories.isNotEmpty()
             StickerBox(
-                modifier = Modifier.size(56.dp),
+                modifier = Modifier.width(56.dp),
+                height = 53.dp,
                 fill = if (hasCategories) SociableTheme.accent else SociableTheme.chip,
                 radius = 16.dp,
                 shadow = 3.dp,
