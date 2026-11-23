@@ -186,6 +186,13 @@ private fun EventListContent(
                     onClick = { viewModel.onOnlyFreeChange(!state.filter.onlyFree) },
                 )
             }
+            item {
+                SociableChip(
+                    text = "🔖 Salvos",
+                    selected = state.savedOnly,
+                    onClick = { viewModel.onSavedOnlyChange(!state.savedOnly) },
+                )
+            }
         }
 
         ErrorText(
@@ -205,8 +212,12 @@ private fun EventListContent(
 
             state.events.isEmpty() -> {
                 EmptyState(
-                    title = "Nenhum evento encontrado",
-                    subtitle = "Tente mudar os filtros ou criar o seu próprio rolê.",
+                    title = if (state.savedOnly) "Nenhum evento salvo" else "Nenhum evento encontrado",
+                    subtitle = if (state.savedOnly) {
+                        "Abra um evento e toque em Salvar para receber um lembrete perto do horário."
+                    } else {
+                        "Tente mudar os filtros ou criar o seu próprio rolê."
+                    },
                     modifier = Modifier.padding(top = 48.dp),
                 )
             }
@@ -219,10 +230,10 @@ private fun EventListContent(
                         compareByDescending<Event> { it.goingCount }.thenBy { it.startAt },
                     )
                 }
-                val limited = state.filter.isEmpty && !showAll && emAlta.size > MAX_EM_ALTA
+                val limited = state.showsDefaultFeed && !showAll && emAlta.size > MAX_EM_ALTA
                 val shown = when {
                     limited -> emAlta.take(MAX_EM_ALTA)
-                    state.filter.isEmpty -> emAlta
+                    state.showsDefaultFeed -> emAlta
                     else -> state.events
                 }
                 LazyColumn(

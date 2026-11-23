@@ -10,6 +10,7 @@ import com.example.sociable.data.repository.CommunityRepository
 import com.example.sociable.data.repository.EventRepository
 import com.example.sociable.data.repository.ReportRepository
 import com.example.sociable.data.repository.ReviewRepository
+import com.example.sociable.data.repository.SavedEventRepository
 import com.example.sociable.data.repository.UserRepository
 import com.example.sociable.data.firebase.FirebaseAuthRepository
 import com.example.sociable.data.firebase.FirestoreChatRepository
@@ -17,6 +18,7 @@ import com.example.sociable.data.firebase.FirestoreCommunityRepository
 import com.example.sociable.data.firebase.FirestoreEventRepository
 import com.example.sociable.data.firebase.FirestoreReportRepository
 import com.example.sociable.data.firebase.FirestoreReviewRepository
+import com.example.sociable.data.firebase.FirestoreSavedEventRepository
 import com.example.sociable.data.firebase.FirestoreUserRepository
 import com.example.sociable.data.notifications.WorkManagerReminderScheduler
 import com.example.sociable.data.places.AddressSearch
@@ -62,6 +64,9 @@ val appModule = module {
     // Chat e avaliações persistidos no Cloud Firestore.
     single<ChatRepository> { FirestoreChatRepository(get(), get()) }
     single<ReviewRepository> { FirestoreReviewRepository(get(), get()) }
+
+    // Eventos salvos (favoritos) de cada pessoa.
+    single<SavedEventRepository> { FirestoreSavedEventRepository(get()) }
 
     // Comunidades (grupos abertos) e o chat delas.
     single<CommunityRepository> { FirestoreCommunityRepository(get(), get()) }
@@ -114,6 +119,7 @@ val appModule = module {
             eventId = params.get(),
             eventRepository = get(),
             reviewRepository = get(),
+            savedEventRepository = get(),
             authRepository = get(),
             reminderScheduler = get(),
         )
