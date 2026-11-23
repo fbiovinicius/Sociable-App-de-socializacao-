@@ -10,8 +10,12 @@ import com.example.sociable.core.validation.ValidationError
 import com.example.sociable.core.validation.Validators
 import com.example.sociable.data.model.EventCategory
 import com.example.sociable.data.model.EventDraft
+import com.example.sociable.data.places.AddressSearch
+import com.example.sociable.data.places.AddressSuggestion
 import com.example.sociable.data.repository.AuthRepository
 import com.example.sociable.data.repository.EventRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +30,9 @@ import java.util.Locale
 
 private const val DEFAULT_DURATION_MINUTES = 120
 private const val MIN_DURATION_MINUTES = 5
+private const val MIN_ADDRESS_QUERY = 3
+private const val ADDRESS_DEBOUNCE_MS = 350L
+private const val MAX_ADDRESS_SUGGESTIONS = 5
 
 data class CreateEventUiState(
     val startAt: Instant,
@@ -64,13 +71,18 @@ data class CreateEventUiState(
     val isLoadingEvent: Boolean = false,
     /** Quem já confirmou presença: o limite de pessoas não pode ficar abaixo disso. */
     val goingCount: Int = 0,
+    /** Sugestões de endereço enquanto a pessoa digita. */
+    val addressSuggestions: List<AddressSuggestion> = emptyList(),
 )
 
 class CreateEventViewModel(
     private val eventRepository: EventRepository,
     private val authRepository: AuthRepository,
+    private val addressSearch: AddressSearch,
     timeProvider: TimeProvider,
 ) : ViewModel() {
+
+    private var addressSearchJob: Job? = null
 
     private val initialStart = timeProvider.now()
         .truncatedTo(ChronoUnit.HOURS)
@@ -156,7 +168,68 @@ class CreateEventViewModel(
     }
 
     fun onAddressChange(value: String) {
-        _uiState.update { it.copy(address = value, addressError = null, error = null) }
+        _uiState.update {
+            it.copy(
+                address = value,
+                addressError = null,
+                error = null,
+                addressSuggestions = if (value.trim().length >= MIN_ADDRESS_QUERY) {
+                    it.addressSuggestions
+                } else {
+                    emptyList()
+                },
+            )
+        }
+        addressSearchJob?.cancel()
+        val query = value.trim()
+        if (query.length < MIN_ADDRESS_QUERY) return
+        addressSearchJob = viewModelScope.launch {
+            // Espera a pessoa parar de digitar antes de consultar (e cobrar) o Places.
+            delay(ADDRESS_DEBOUNCE_MS)
+            val result = addressSearch.suggest(query)
+            _uiState.update {
+                it.copy(
+                    addressSuggestions = (result as? AppResult.Success)?.data.orEmpty()
+                        .take(MAX_ADDRESS_SUGGESTIONS),
+                )
+            }
+        }
+    }
+
+    /** A pessoa tocou numa sugestão: preenche o endereço e marca o ponto no mapa. */
+    fun onAddressSuggestionSelected(suggestion: AddressSuggestion) {
+        addressSearchJob?.cancel()
+        _uiState.update {
+            it.copy(
+                address = suggestion.fullText,
+                addressError = null,
+                error = null,
+                addressSuggestions = emptyList(),
+            )
+        }
+        viewModelScope.launch {
+            when (val result = addressSearch.resolve(suggestion)) {
+                is AppResult.Success -> {
+                    val place = result.data
+                    _uiState.update {
+                        it.copy(
+                            address = place.address,
+                            latitude = String.format(Locale.US, "%.6f", place.latitude),
+                            longitude = String.format(Locale.US, "%.6f", place.longitude),
+                            latitudeError = null,
+                            longitudeError = null,
+                        )
+                    }
+                }
+                is AppResult.Failure -> _uiState.update { it.copy(error = result.error) }
+            }
+        }
+    }
+
+    /** Fecha a lista de sugestões sem alterar o texto digitado. */
+    fun onDismissAddressSuggestions() {
+        addressSearchJob?.cancel()
+        _uiState.update { it.copy(addressSuggestions = emptyList()) }
     }
 
     /** Preenche o endereço sugerido pelo mapa sem sobrescrever o que a pessoa já digitou. */

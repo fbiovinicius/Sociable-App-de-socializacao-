@@ -6,7 +6,10 @@ import com.example.sociable.core.validation.ValidationError
 import com.example.sociable.core.validation.Validators
 import com.example.sociable.data.fake.FakeAuthRepository
 import com.example.sociable.data.fake.FakeDatabase
+import com.example.sociable.data.fake.FakeAddressSearch
 import com.example.sociable.data.fake.FakeEventRepository
+import com.example.sociable.data.places.AddressSuggestion
+import com.example.sociable.data.places.ResolvedAddress
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -42,11 +45,13 @@ class CreateEventViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private suspend fun viewModel(): CreateEventViewModel {
+    private suspend fun viewModel(
+        addressSearch: FakeAddressSearch = FakeAddressSearch(),
+    ): CreateEventViewModel {
         val db = FakeDatabase(timeProvider)
         val auth = FakeAuthRepository(db, timeProvider)
         auth.signIn("demo@sociable.app", "123456")
-        return CreateEventViewModel(FakeEventRepository(db, timeProvider), auth, timeProvider)
+        return CreateEventViewModel(FakeEventRepository(db, timeProvider), auth, addressSearch, timeProvider)
     }
 
     @Test
@@ -213,5 +218,71 @@ class CreateEventViewModelTest {
         viewModel.onSecretChange(true)
 
         assertFalse(viewModel.uiState.value.isSecret)
+    }
+
+    private val suggestion = AddressSuggestion(
+        placeId = "p1",
+        primaryText = "Av. Djalma Batista, 1000",
+        secondaryText = "Chapada, Manaus - AM",
+        fullText = "Av. Djalma Batista, 1000 - Chapada, Manaus - AM",
+    )
+
+    @Test
+    fun `endereco curto nao consulta o Places`() = runTest(dispatcher) {
+        val search = FakeAddressSearch(suggestions = listOf(suggestion))
+        val vm = viewModel(search)
+
+        vm.onAddressChange("Av")
+        advanceUntilIdle()
+
+        assertTrue(search.queries.isEmpty())
+        assertTrue(vm.uiState.value.addressSuggestions.isEmpty())
+    }
+
+    @Test
+    fun `digitacao rapida consulta uma vez so com o texto final`() = runTest(dispatcher) {
+        val search = FakeAddressSearch(suggestions = listOf(suggestion))
+        val vm = viewModel(search)
+
+        vm.onAddressChange("Av. Dj")
+        vm.onAddressChange("Av. Djalma")
+        advanceUntilIdle()
+
+        assertEquals(listOf("Av. Djalma"), search.queries)
+        assertEquals(listOf(suggestion), vm.uiState.value.addressSuggestions)
+    }
+
+    @Test
+    fun `escolher sugestao preenche endereco e coordenadas`() = runTest(dispatcher) {
+        val search = FakeAddressSearch(
+            suggestions = listOf(suggestion),
+            resolved = ResolvedAddress("Av. Djalma Batista, 1000, Manaus", -3.0912345, -60.0123456),
+        )
+        val vm = viewModel(search)
+        vm.onAddressChange("Av. Djalma")
+        advanceUntilIdle()
+
+        vm.onAddressSuggestionSelected(suggestion)
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals("Av. Djalma Batista, 1000, Manaus", state.address)
+        assertEquals("-3.091235", state.latitude)
+        assertEquals("-60.012346", state.longitude)
+        assertTrue(state.addressSuggestions.isEmpty())
+        assertNull(state.error)
+    }
+
+    @Test
+    fun `falha na busca nao mostra sugestoes nem trava a digitacao`() = runTest(dispatcher) {
+        val search = FakeAddressSearch(failure = com.example.sociable.core.AppError.NETWORK)
+        val vm = viewModel(search)
+
+        vm.onAddressChange("Av. Djalma")
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.addressSuggestions.isEmpty())
+        assertEquals("Av. Djalma", vm.uiState.value.address)
+        assertNull(vm.uiState.value.error)
     }
 }
