@@ -44,7 +44,7 @@ fun WelcomeScreen(
             SociableLogo(size = 220.dp)
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Rolê bom é rolê com gente nova.",
+                text = "Rolê bom é com gente nova.",
                 color = SociableTheme.muted,
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center,
