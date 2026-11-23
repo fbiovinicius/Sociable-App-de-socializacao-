@@ -35,9 +35,13 @@ data class Event(
     val isSecret: Boolean = false,
     /** Cancelado some do feed/mapa, mas continua acessível por quem já conhecia o evento. */
     val status: EventStatus = EventStatus.ACTIVE,
+    /** Emoji escolhido pelo organizador; aparece no marcador do mapa e nos cards. */
+    val emoji: String = DEFAULT_EVENT_EMOJI,
 ) {
     fun isHappeningAt(now: Instant): Boolean =
         !now.isBefore(startAt) && !now.isAfter(endAt)
 
     fun isFinishedAt(now: Instant): Boolean = now.isAfter(endAt)
 }
+
+const val DEFAULT_EVENT_EMOJI = "🎉"
