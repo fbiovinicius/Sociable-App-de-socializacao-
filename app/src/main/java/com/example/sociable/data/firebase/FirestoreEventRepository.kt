@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import java.util.Date
@@ -81,6 +82,36 @@ class FirestoreEventRepository(
         }
 
         awaitClose { registration.remove() }
+    }
+
+    override fun observeChatEvents(userId: String): Flow<List<Event>> {
+        if (userId.isBlank()) return flowOf(emptyList())
+        val organized = events
+            .whereEqualTo(EventFields.ORGANIZER_ID, userId)
+            .limit(CHAT_EVENT_LIMIT)
+            .snapshotFlow()
+            .map { snapshot -> snapshot.documents.mapNotNull { it.toDomainEvent() } }
+        // Consulta de grupo de coleções em `rsvps`: precisa da regra e da exceção
+        // de índice descritas no README.
+        val attending = firestore.collectionGroup(SUBCOLLECTION_RSVPS)
+            .whereEqualTo(FIELD_USER_ID, userId)
+            .limit(CHAT_EVENT_LIMIT)
+            .snapshotFlow()
+            .map { snapshot ->
+                snapshot.documents.mapNotNull { it.reference.parent.parent?.id }.toSet()
+            }
+            .flatMapLatest { ids ->
+                if (ids.isEmpty()) {
+                    flowOf(emptyList())
+                } else {
+                    combine(ids.map { id -> events.document(id).snapshotFlow().map { it.toDomainEvent() } }) {
+                        it.filterNotNull()
+                    }
+                }
+            }
+        return combine(organized, attending) { mine, going ->
+            (mine + going).distinctBy { it.id }
+        }
     }
 
     override fun observeEvent(eventId: String): Flow<Event?> =
@@ -399,6 +430,7 @@ class FirestoreEventRepository(
         const val SUBCOLLECTION_PRIVATE = "private"
         const val PRIVATE_LOCATION_DOCUMENT = "location"
         const val FEED_LIMIT = 200L
+        const val CHAT_EVENT_LIMIT = 50L
         const val ATTENDEE_LIMIT = 30L
 
         const val FIELD_USER_ID = "userId"

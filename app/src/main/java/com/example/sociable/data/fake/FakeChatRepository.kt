@@ -21,6 +21,9 @@ class FakeChatRepository(
             all[eventId].orEmpty().sortedBy { it.sentAt }
         }
 
+    override fun observeLastMessage(eventId: String): Flow<Message?> =
+        db.messages.map { all -> all[eventId].orEmpty().maxByOrNull { it.sentAt } }
+
     override suspend fun sendMessage(
         eventId: String,
         authorId: String,

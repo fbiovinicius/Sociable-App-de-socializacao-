@@ -20,6 +20,9 @@ object Validators {
     const val PLACE_MAX = 120
     const val BIO_MAX = 160
     const val MESSAGE_MAX = 500
+    const val COMMUNITY_NAME_MIN = 3
+    const val COMMUNITY_NAME_MAX = 60
+    const val COMMUNITY_DESCRIPTION_MAX = 200
     const val REVIEW_COMMENT_MAX = 300
     const val IMAGE_URL_MAX = 500
     const val PHOTO_URL_MAX = 500
@@ -145,6 +148,20 @@ object Validators {
             else -> null
         }
     }
+
+    fun communityName(value: String): ValidationError? {
+        val trimmed = value.trim()
+        return when {
+            trimmed.isEmpty() -> ValidationError.REQUIRED
+            trimmed.length < COMMUNITY_NAME_MIN -> ValidationError.TOO_SHORT
+            trimmed.length > COMMUNITY_NAME_MAX -> ValidationError.TOO_LONG
+            else -> null
+        }
+    }
+
+    /** A descrição da comunidade é opcional. */
+    fun communityDescription(value: String): ValidationError? =
+        if (value.trim().length > COMMUNITY_DESCRIPTION_MAX) ValidationError.TOO_LONG else null
 
     fun message(value: String): ValidationError? {
         val trimmed = value.trim()

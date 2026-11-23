@@ -97,6 +97,28 @@ service cloud.firestore {
         || (delta == -1 && !existsAfter(ownRsvpPath(eventId)));
     }
 
+    function communityPath(communityId) {
+      return /databases/$(database)/documents/communities/$(communityId);
+    }
+
+    function communityMemberPath(communityId, memberId) {
+      return /databases/$(database)/documents/communities/$(communityId)/members/$(memberId);
+    }
+
+    function isCommunityMember(communityId) {
+      return signedIn() && exists(communityMemberPath(communityId, request.auth.uid));
+    }
+
+    // Consultas de grupo de coleção usadas na aba Mensagens: cada pessoa só
+    // consegue listar os próprios registros (filtro userId == uid).
+    match /{path=**}/rsvps/{rsvpId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    match /{path=**}/members/{memberId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
     match /users/{userId} {
       // Perfis são visíveis para usuários autenticados (nome, foto, bio).
       allow read: if signedIn();
@@ -309,6 +331,100 @@ service cloud.firestore {
           && request.resource.data.comment is string
           && request.resource.data.comment.size() <= 300
           && request.resource.data.createdAt == request.time;
+
+        allow update, delete: if false;
+      }
+    }
+
+    // Comunidades: grupos abertos criados por qualquer pessoa. O contador
+    // memberCount só muda junto com o documento do próprio membro.
+    match /communities/{communityId} {
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name', 'description', 'ownerId', 'ownerName', 'memberCount', 'createdAt'])
+        && request.resource.data.keys().hasAll(['name', 'description', 'ownerId', 'ownerName', 'memberCount', 'createdAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.memberCount == 1
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 3
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 200
+        && request.resource.data.ownerName is string
+        && request.resource.data.ownerName.size() <= 100
+        && request.resource.data.createdAt == request.time
+        && existsAfter(communityMemberPath(communityId, request.auth.uid));
+
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])
+        && (
+          (
+            request.resource.data.memberCount == resource.data.memberCount + 1
+            && !exists(communityMemberPath(communityId, request.auth.uid))
+            && existsAfter(communityMemberPath(communityId, request.auth.uid))
+          )
+          ||
+          (
+            request.resource.data.memberCount == resource.data.memberCount - 1
+            && resource.data.ownerId != request.auth.uid
+            && exists(communityMemberPath(communityId, request.auth.uid))
+            && !existsAfter(communityMemberPath(communityId, request.auth.uid))
+          )
+        );
+
+      allow delete: if false;
+
+      match /members/{userId} {
+        allow get: if signedIn() && request.auth.uid == userId;
+
+        allow create: if signedIn()
+          && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(['userId', 'name', 'joinedAt'])
+          && request.resource.data.keys().hasAll(['userId', 'name', 'joinedAt'])
+          && request.resource.data.userId == userId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() <= 100
+          && request.resource.data.joinedAt == request.time
+          && (
+            // Criação da comunidade: o dono entra no mesmo batch.
+            (
+              !exists(communityPath(communityId))
+              && getAfter(communityPath(communityId)).data.ownerId == userId
+              && getAfter(communityPath(communityId)).data.memberCount == 1
+            )
+            ||
+            // Entrada em uma comunidade existente.
+            (
+              exists(communityPath(communityId))
+              && getAfter(communityPath(communityId)).data.memberCount
+                == get(communityPath(communityId)).data.memberCount + 1
+            )
+          );
+
+        // Sair: o dono não sai, e o contador diminui no mesmo batch.
+        allow delete: if signedIn()
+          && request.auth.uid == userId
+          && get(communityPath(communityId)).data.ownerId != userId
+          && getAfter(communityPath(communityId)).data.memberCount
+            == get(communityPath(communityId)).data.memberCount - 1;
+
+        allow update: if false;
+      }
+
+      match /messages/{messageId} {
+        allow read: if isCommunityMember(communityId);
+
+        allow create: if isCommunityMember(communityId)
+          && request.resource.data.keys().hasOnly(['authorId', 'authorName', 'text', 'sentAt'])
+          && request.resource.data.keys().hasAll(['authorId', 'authorName', 'text', 'sentAt'])
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.authorName is string
+          && request.resource.data.authorName.size() <= 100
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 500
+          && request.resource.data.sentAt == request.time;
 
         allow update, delete: if false;
       }

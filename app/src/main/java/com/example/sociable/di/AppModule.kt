@@ -6,12 +6,14 @@ import org.koin.android.ext.koin.androidContext
 import com.example.sociable.core.time.TimeProvider
 import com.example.sociable.data.repository.AuthRepository
 import com.example.sociable.data.repository.ChatRepository
+import com.example.sociable.data.repository.CommunityRepository
 import com.example.sociable.data.repository.EventRepository
 import com.example.sociable.data.repository.ReportRepository
 import com.example.sociable.data.repository.ReviewRepository
 import com.example.sociable.data.repository.UserRepository
 import com.example.sociable.data.firebase.FirebaseAuthRepository
 import com.example.sociable.data.firebase.FirestoreChatRepository
+import com.example.sociable.data.firebase.FirestoreCommunityRepository
 import com.example.sociable.data.firebase.FirestoreEventRepository
 import com.example.sociable.data.firebase.FirestoreReportRepository
 import com.example.sociable.data.firebase.FirestoreReviewRepository
@@ -28,6 +30,8 @@ import com.example.sociable.feature.events.CreateEventViewModel
 import com.example.sociable.feature.events.EventDetailViewModel
 import com.example.sociable.feature.events.EventListViewModel
 import com.example.sociable.feature.map.MapViewModel
+import com.example.sociable.feature.messages.CommunityChatViewModel
+import com.example.sociable.feature.messages.MessagesViewModel
 import com.example.sociable.feature.onboarding.OnboardingViewModel
 import com.example.sociable.feature.profile.ProfileViewModel
 import com.example.sociable.feature.review.ReviewViewModel
@@ -59,6 +63,9 @@ val appModule = module {
     single<ChatRepository> { FirestoreChatRepository(get(), get()) }
     single<ReviewRepository> { FirestoreReviewRepository(get(), get()) }
 
+    // Comunidades (grupos abertos) e o chat delas.
+    single<CommunityRepository> { FirestoreCommunityRepository(get(), get()) }
+
     // Denúncias de eventos (coleção `reports`; leitura bloqueada no cliente).
     single<ReportRepository> { FirestoreReportRepository(get()) }
 
@@ -75,6 +82,15 @@ val appModule = module {
     viewModelOf(::CreateEventViewModel)
     viewModelOf(::ProfileViewModel)
     viewModelOf(::MapViewModel)
+    viewModelOf(::MessagesViewModel)
+
+    viewModel<CommunityChatViewModel> { params ->
+        CommunityChatViewModel(
+            communityId = params.get(),
+            communityRepository = get(),
+            authRepository = get(),
+        )
+    }
 
     viewModel<ChatViewModel> { params ->
         ChatViewModel(

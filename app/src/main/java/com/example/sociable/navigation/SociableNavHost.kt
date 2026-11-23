@@ -30,6 +30,8 @@ import com.example.sociable.feature.events.CreateEventViewModel
 import com.example.sociable.feature.events.EventDetailViewModel
 import com.example.sociable.feature.events.EventListViewModel
 import com.example.sociable.feature.map.MapViewModel
+import com.example.sociable.feature.messages.CommunityChatViewModel
+import com.example.sociable.feature.messages.MessagesViewModel
 import com.example.sociable.feature.onboarding.OnboardingViewModel
 import com.example.sociable.feature.profile.ProfileViewModel
 import com.example.sociable.feature.review.ReviewViewModel
@@ -45,7 +47,8 @@ import com.example.sociable.ui.map.MapScreen
 import com.example.sociable.ui.onboarding.OnboardingScreen
 import com.example.sociable.ui.profile.ProfileScreen
 import com.example.sociable.ui.review.ReviewScreen
-import com.example.sociable.ui.secret.SecretScreen
+import com.example.sociable.ui.messages.CommunityChatScreen
+import com.example.sociable.ui.messages.MessagesScreen
 import com.example.sociable.ui.theme.SociableTheme
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -56,7 +59,7 @@ private data class Tab(val route: String, val label: String, val icon: Int)
 private val tabs = listOf(
     Tab(Routes.EVENTS, "Descobrir", R.drawable.ic_nav_discover),
     Tab(Routes.MAP, "Mapa", R.drawable.ic_nav_map),
-    Tab(Routes.SECRET, "Chat da Cidade", R.drawable.ic_nav_chat),
+    Tab(Routes.MESSAGES, "Mensagens", R.drawable.ic_nav_chat),
     Tab(Routes.PROFILE, "Perfil", R.drawable.ic_nav_profile),
 )
 @Composable
@@ -190,14 +193,14 @@ fun SociableNavHost(
                 )
             }
 
-            composable(Routes.SECRET) {
-                val viewModel: EventListViewModel = koinViewModel()
-                SecretScreen(
+            composable(Routes.MESSAGES) {
+                val viewModel: MessagesViewModel = koinViewModel()
+                MessagesScreen(
                     viewModel = viewModel,
-                    onEventClick = { eventId ->
-                        navController.navigate(Routes.eventDetail(eventId))
+                    onEventChatClick = { eventId -> navController.navigate(Routes.chat(eventId)) },
+                    onCommunityClick = { communityId ->
+                        navController.navigate(Routes.communityChat(communityId))
                     },
-                    onCreateClick = { navController.navigate(Routes.createEvent(secret = true)) },
                 )
             }
 
@@ -272,6 +275,20 @@ fun SociableNavHost(
                     parameters = { parametersOf(eventId) },
                 )
                 ChatScreen(
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(
+                route = Routes.COMMUNITY_CHAT,
+                arguments = listOf(navArgument("communityId") { type = NavType.StringType }),
+            ) { entry ->
+                val communityId = entry.arguments?.getString("communityId").orEmpty()
+                val viewModel: CommunityChatViewModel = koinViewModel(
+                    parameters = { parametersOf(communityId) },
+                )
+                CommunityChatScreen(
                     viewModel = viewModel,
                     onBack = { navController.popBackStack() },
                 )
