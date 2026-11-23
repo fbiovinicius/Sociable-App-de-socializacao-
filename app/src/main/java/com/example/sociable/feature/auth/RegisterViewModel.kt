@@ -25,6 +25,9 @@ data class RegisterUiState(
     val isLoading: Boolean = false,
     val error: AppError? = null,
     val isRegistered: Boolean = false,
+    val isGoogleLoading: Boolean = false,
+    /** Entrou com o Google numa conta que já existia: vai direto para o app, sem onboarding. */
+    val isSignedIn: Boolean = false,
 )
 
 class RegisterViewModel(
@@ -57,8 +60,35 @@ class RegisterViewModel(
         _uiState.update { it.copy(confirmPassword = value, confirmPasswordError = null, error = null) }
     }
 
+    /** Token de ID do Google já obtido pela tela. Conta nova passa pelo onboarding. */
+    fun onGoogleToken(idToken: String) {
+        val state = _uiState.value
+        if (state.isLoading || state.isGoogleLoading) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isGoogleLoading = true, error = null) }
+            when (val result = authRepository.signInWithGoogle(idToken)) {
+                is AppResult.Success -> _uiState.update {
+                    if (result.data.isNewUser) {
+                        it.copy(isGoogleLoading = false, isRegistered = true)
+                    } else {
+                        it.copy(isGoogleLoading = false, isSignedIn = true)
+                    }
+                }
+
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isGoogleLoading = false, error = result.error)
+                }
+            }
+        }
+    }
+
+    fun onGoogleUnavailable() {
+        _uiState.update { it.copy(error = AppError.GOOGLE_SIGN_IN_UNAVAILABLE) }
+    }
+
     fun onRegisterClick() {
         val state = _uiState.value
+        if (state.isGoogleLoading) return
         val nameError = Validators.name(state.name)
         val emailError = Validators.email(state.email)
         val passwordError = Validators.password(state.password)

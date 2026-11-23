@@ -4,6 +4,12 @@ import com.example.sociable.core.AppResult
 import com.example.sociable.data.model.User
 import kotlinx.coroutines.flow.StateFlow
 
+/** Resultado do login com Google: [isNewUser] é verdadeiro quando o perfil foi criado agora. */
+data class SocialSignInResult(
+    val user: User,
+    val isNewUser: Boolean,
+)
+
 /**
  * Contrato de autenticação.
  *
@@ -23,6 +29,12 @@ interface AuthRepository {
     suspend fun signIn(email: String, password: String): AppResult<User>
 
     suspend fun signUp(name: String, email: String, password: String): AppResult<User>
+
+    /**
+     * Entra com o token de ID do Google (obtido pelo Credential Manager). Se a conta ainda
+     * não tem perfil em `users/{uid}`, cria um com nome, e-mail e foto do Google.
+     */
+    suspend fun signInWithGoogle(idToken: String): AppResult<SocialSignInResult>
 
     suspend fun signOut()
 

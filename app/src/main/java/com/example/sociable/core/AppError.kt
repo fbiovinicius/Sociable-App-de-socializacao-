@@ -25,6 +25,7 @@ enum class AppError {
     ALREADY_REVIEWED,
     INVALID_INPUT,
     CHAT_NOT_AVAILABLE,
+    GOOGLE_SIGN_IN_UNAVAILABLE,
 }
 
 fun Throwable.toAppError(): AppError = when (this) {

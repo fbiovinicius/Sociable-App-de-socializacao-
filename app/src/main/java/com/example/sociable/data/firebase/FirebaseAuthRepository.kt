@@ -5,8 +5,10 @@ import com.example.sociable.core.AppResult
 import com.example.sociable.core.time.TimeProvider
 import com.example.sociable.data.model.User
 import com.example.sociable.data.repository.AuthRepository
+import com.example.sociable.data.repository.SocialSignInResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CancellationException
@@ -108,6 +110,46 @@ class FirebaseAuthRepository(
         }
     }
 
+    override suspend fun signInWithGoogle(idToken: String): AppResult<SocialSignInResult> {
+        if (idToken.isBlank()) return AppResult.Failure(AppError.INVALID_CREDENTIALS)
+        var createdFirebaseUser: FirebaseUser? = null
+        return try {
+            val credential = GoogleAuthProvider.getCredential(idToken, null)
+            val result = auth.signInWithCredential(credential).await()
+            val firebaseUser = result.user ?: return AppResult.Failure(AppError.UNKNOWN)
+            if (result.additionalUserInfo?.isNewUser == true) createdFirebaseUser = firebaseUser
+
+            val reference = firestore.collection(USERS).document(firebaseUser.uid)
+            val existing = reference.get().await().toDomainUser()
+            if (existing != null) {
+                _currentUser.value = existing
+                return AppResult.Success(SocialSignInResult(existing, isNewUser = false))
+            }
+
+            val email = firebaseUser.email.orEmpty().trim().lowercase()
+            val user = User(
+                id = firebaseUser.uid,
+                name = googleDisplayName(firebaseUser.displayName, email),
+                email = email,
+                photoUrl = firebaseUser.photoUrl?.toString()?.let(::validPhotoUrlOrNull),
+                createdAt = timeProvider.now(),
+            )
+            reference.set(user.toFirestoreMap()).await()
+            _currentUser.value = user
+            AppResult.Success(SocialSignInResult(user, isNewUser = true))
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            // Conta Auth criada agora sem perfil não deve ficar para trás (igual ao cadastro por e-mail).
+            try {
+                createdFirebaseUser?.delete()?.await()
+            } catch (_: Exception) {
+                // O erro original é o mais relevante para a UI.
+            }
+            AppResult.Failure(exception.toFirebaseAppError(), exception)
+        }
+    }
+
     override suspend fun signOut() {
         profileListener?.remove()
         profileListener = null
@@ -130,3 +172,18 @@ class FirebaseAuthRepository(
         const val USERS = "users"
     }
 }
+
+/**
+ * Nome do perfil criado a partir do Google. As regras do Firestore exigem de 2 a 60
+ * caracteres, então nomes ausentes ou curtos demais viram o início do e-mail.
+ */
+internal fun googleDisplayName(displayName: String?, email: String): String {
+    val fromGoogle = displayName.orEmpty().trim().take(60)
+    if (fromGoogle.length >= 2) return fromGoogle
+    val fromEmail = email.substringBefore('@').trim().take(60)
+    return if (fromEmail.length >= 2) fromEmail else "Usuário Sociable"
+}
+
+/** As regras só aceitam foto https de até 500 caracteres. */
+internal fun validPhotoUrlOrNull(url: String): String? =
+    url.takeIf { it.startsWith("https://") && it.length <= 500 }

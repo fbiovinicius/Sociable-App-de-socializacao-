@@ -21,6 +21,8 @@ fun AppError.message(): String = when (this) {
     AppError.ALREADY_REVIEWED -> "Você já avaliou este evento."
     AppError.INVALID_INPUT -> "Dados inválidos. Revise os campos."
     AppError.CHAT_NOT_AVAILABLE -> "O chat deste evento não está disponível."
+    AppError.GOOGLE_SIGN_IN_UNAVAILABLE ->
+        "Não foi possível entrar com o Google. Verifique se há uma conta Google no aparelho e tente de novo."
 }
 
 fun ValidationError.message(): String = when (this) {

@@ -146,6 +146,11 @@ fun SociableNavHost(
                             popUpTo(Routes.WELCOME) { inclusive = true }
                         }
                     },
+                    onSignedIn = {
+                        navController.navigate(Routes.MAP) {
+                            popUpTo(Routes.WELCOME) { inclusive = true }
+                        }
+                    },
                     onLoginClick = {
                         navController.navigate(Routes.LOGIN) {
                             popUpTo(Routes.WELCOME)

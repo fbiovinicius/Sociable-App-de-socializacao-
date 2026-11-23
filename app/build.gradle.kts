@@ -105,6 +105,11 @@ dependencies {
     implementation(libs.maps.compose)
     implementation(libs.places)
 
+    // Login com Google (Credential Manager) -> Firebase Auth.
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.google.id)
+
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     testImplementation(libs.junit)

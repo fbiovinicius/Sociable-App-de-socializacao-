@@ -6,6 +6,7 @@ import com.example.sociable.core.time.TimeProvider
 import com.example.sociable.core.validation.Validators
 import com.example.sociable.data.model.User
 import com.example.sociable.data.repository.AuthRepository
+import com.example.sociable.data.repository.SocialSignInResult
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,6 +61,27 @@ class FakeAuthRepository(
         db.credentials[normalized] = password
         _currentUser.value = user
         return AppResult.Success(user)
+    }
+
+    /** No fake, o "token" do Google é só um apelido: a conta é `<token>@google.test`. */
+    override suspend fun signInWithGoogle(idToken: String): AppResult<SocialSignInResult> {
+        delay(350)
+        if (idToken.isBlank()) return AppResult.Failure(AppError.INVALID_CREDENTIALS)
+        val email = "${idToken.trim().lowercase()}@google.test"
+        val existing = db.users.value.firstOrNull { it.email == email }
+        if (existing != null) {
+            _currentUser.value = existing
+            return AppResult.Success(SocialSignInResult(existing, isNewUser = false))
+        }
+        val user = User(
+            id = "user-${db.users.value.size + 1}-${timeProvider.now().toEpochMilli()}",
+            name = idToken.trim(),
+            email = email,
+            createdAt = timeProvider.now(),
+        )
+        db.users.update { it + user }
+        _currentUser.value = user
+        return AppResult.Success(SocialSignInResult(user, isNewUser = true))
     }
 
     override suspend fun signOut() {

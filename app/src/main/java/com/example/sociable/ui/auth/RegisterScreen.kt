@@ -17,6 +17,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -52,6 +56,7 @@ import com.example.sociable.ui.common.SociableChip
 fun RegisterScreen(
     viewModel: RegisterViewModel,
     onRegistered: () -> Unit,
+    onSignedIn: () -> Unit,
     onLoginClick: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -75,6 +80,12 @@ fun RegisterScreen(
     LaunchedEffect(state.isRegistered) {
         if (state.isRegistered) onRegistered()
     }
+    LaunchedEffect(state.isSignedIn) {
+        if (state.isSignedIn) onSignedIn()
+    }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -175,9 +186,42 @@ fun RegisterScreen(
         SociableButton(
             text = "Criar conta",
             onClick = viewModel::onRegisterClick,
-            enabled = isAdultOk,
+            enabled = isAdultOk && !state.isGoogleLoading,
             isLoading = state.isLoading,
         )
+
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "ou",
+            color = SociableTheme.muted,
+            fontSize = 13.sp,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        // O botão do Google também exige a data de nascimento: o 18+ vale para qualquer cadastro.
+        SociableButton(
+            text = "Continuar com o Google",
+            onClick = {
+                scope.launch {
+                    when (val result = requestGoogleIdToken(context)) {
+                        is GoogleTokenResult.Token -> viewModel.onGoogleToken(result.idToken)
+                        GoogleTokenResult.Cancelled -> Unit
+                        GoogleTokenResult.Unavailable -> viewModel.onGoogleUnavailable()
+                    }
+                }
+            },
+            secondary = true,
+            enabled = isAdultOk && !state.isLoading,
+            isLoading = state.isGoogleLoading,
+        )
+        if (!isAdultOk) {
+            Text(
+                text = "Informe sua data de nascimento acima para continuar com o Google.",
+                color = SociableTheme.muted,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
         SociableTextLink(
             text = "Já tenho conta",
             onClick = onLoginClick,
