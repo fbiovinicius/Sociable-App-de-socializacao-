@@ -11,6 +11,7 @@ import com.example.sociable.data.model.SocialVibe
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -107,5 +108,38 @@ class ProfileViewModelTest {
 
         assertEquals(null, viewModel.uiState.value.lifeStage)
         assertEquals(null, viewModel.uiState.value.socialVibe)
+    }
+
+    @Test
+    fun `salvar grava o instagram sem arroba e o anel acompanha o preenchimento`() = runTest(dispatcher) {
+        val deps = dependencies()
+        val viewModel = ProfileViewModel(deps.users, deps.auth)
+        advanceUntilIdle()
+        val before = viewModel.uiState.value.completion
+
+        viewModel.onInstagramChange("@ana.souza")
+        viewModel.onSaveClick()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isSaved)
+        assertEquals("ana.souza", deps.users.observeUser("user-1").first()!!.instagram)
+        assertTrue(viewModel.uiState.value.completion > before)
+    }
+
+    @Test
+    fun `instagram invalido bloqueia o salvamento`() = runTest(dispatcher) {
+        val deps = dependencies()
+        val viewModel = ProfileViewModel(deps.users, deps.auth)
+        advanceUntilIdle()
+
+        viewModel.onInstagramChange("https://instagram.com/ana")
+        viewModel.onSaveClick()
+        advanceUntilIdle()
+
+        assertEquals(
+            com.example.sociable.core.validation.ValidationError.INVALID_HANDLE,
+            viewModel.uiState.value.instagramError,
+        )
+        assertFalse(viewModel.uiState.value.isSaved)
     }
 }

@@ -33,6 +33,7 @@ internal fun DocumentSnapshot.toDomainUser(): User? {
         email = getString("email").orEmpty(),
         bio = getString("bio").orEmpty(),
         photoUrl = getString("photoUrl"),
+        instagram = getString("instagram").orEmpty(),
         interests = interests,
         lifeStage = getString("lifeStage")?.let { name ->
             runCatching { LifeStage.valueOf(name) }.getOrNull()
@@ -50,6 +51,7 @@ internal fun User.toFirestoreMap(): Map<String, Any?> = mapOf(
     "email" to email,
     "bio" to bio,
     "photoUrl" to photoUrl,
+    "instagram" to instagram,
     "interests" to interests.map { it.name },
     "lifeStage" to lifeStage?.name,
     "lookingFor" to lookingFor.map { it.name },

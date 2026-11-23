@@ -32,6 +32,7 @@ object Validators {
 
     private val EMAIL_REGEX = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
     private val URL_REGEX = Regex("^https?://.+", RegexOption.IGNORE_CASE)
+    private val INSTAGRAM_REGEX = Regex("^[A-Za-z0-9._]{1,30}$")
     private val PHOTO_URL_REGEX = Regex("^https://.+", RegexOption.IGNORE_CASE)
 
     fun name(value: String): ValidationError? {
@@ -186,6 +187,16 @@ object Validators {
             !URL_REGEX.matches(trimmed) -> ValidationError.INVALID_URL
             else -> null
         }
+    }
+
+    /** Usuário do Instagram sem espaços nem "@" no começo. */
+    fun normalizeInstagram(value: String): String = value.trim().removePrefix("@").trim()
+
+    /** Instagram é opcional; quando preenchido aceita só o formato de usuário (sem link). */
+    fun instagram(value: String): ValidationError? {
+        val handle = normalizeInstagram(value)
+        if (handle.isEmpty()) return null
+        return if (INSTAGRAM_REGEX.matches(handle)) null else ValidationError.INVALID_HANDLE
     }
 
     /** Foto de perfil: exige HTTPS para evitar tráfego inseguro e URLs locais. */

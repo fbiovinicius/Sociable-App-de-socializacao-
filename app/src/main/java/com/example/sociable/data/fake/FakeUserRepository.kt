@@ -2,6 +2,7 @@ package com.example.sociable.data.fake
 
 import com.example.sociable.core.AppError
 import com.example.sociable.core.AppResult
+import com.example.sociable.core.validation.Validators
 import com.example.sociable.data.model.Interest
 import com.example.sociable.data.model.LifeStage
 import com.example.sociable.data.model.LookingFor
@@ -26,6 +27,7 @@ class FakeUserRepository(
         bio: String,
         photoUrl: String?,
         interests: Set<Interest>,
+        instagram: String,
     ): AppResult<User> {
         delay(300)
         val current = db.users.value.firstOrNull { it.id == userId }
@@ -36,6 +38,7 @@ class FakeUserRepository(
             bio = bio.trim(),
             photoUrl = photoUrl?.trim()?.takeIf { it.isNotBlank() },
             interests = interests,
+            instagram = Validators.normalizeInstagram(instagram),
         )
         db.users.update { users ->
             users.map { if (it.id == userId) updated else it }

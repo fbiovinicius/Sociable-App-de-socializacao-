@@ -26,6 +26,9 @@ data class ProfileUiState(
     val email: String = "",
     val bio: String = "",
     val photoUrl: String = "",
+    val instagram: String = "",
+    /** Foto já salva no perfil (a do anel); `photoUrl` é o que está sendo digitado. */
+    val savedPhotoUrl: String = "",
     val interests: Set<Interest> = emptySet(),
     val lifeStage: LifeStage? = null,
     val lookingFor: Set<LookingFor> = emptySet(),
@@ -33,12 +36,17 @@ data class ProfileUiState(
     val nameError: ValidationError? = null,
     val bioError: ValidationError? = null,
     val photoUrlError: ValidationError? = null,
+    val instagramError: ValidationError? = null,
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val error: AppError? = null,
     val isSaved: Boolean = false,
     val isSignedOut: Boolean = false,
-)
+) {
+    /** Perfil preenchido, de 0f a 1f (anel de progresso do avatar). */
+    val completion: Float
+        get() = ProfileCompletion.of(photoUrl, bio, interests, lifeStage, lookingFor, socialVibe, instagram)
+}
 
 class ProfileViewModel(
     private val userRepository: UserRepository,
@@ -72,6 +80,8 @@ class ProfileViewModel(
                                     email = user.email,
                                     bio = user.bio,
                                     photoUrl = user.photoUrl.orEmpty(),
+                                    instagram = user.instagram,
+                                    savedPhotoUrl = user.photoUrl.orEmpty(),
                                     interests = user.interests,
                                     lifeStage = user.lifeStage,
                                     lookingFor = user.lookingFor,
@@ -95,6 +105,10 @@ class ProfileViewModel(
 
     fun onPhotoUrlChange(value: String) {
         _uiState.update { it.copy(photoUrl = value, photoUrlError = null, error = null, isSaved = false) }
+    }
+
+    fun onInstagramChange(value: String) {
+        _uiState.update { it.copy(instagram = value, instagramError = null, error = null, isSaved = false) }
     }
 
     fun onInterestToggle(interest: Interest) {
@@ -147,13 +161,15 @@ class ProfileViewModel(
         val nameError = Validators.name(state.name)
         val bioError = Validators.bio(state.bio)
         val photoUrlError = Validators.photoUrl(state.photoUrl)
+        val instagramError = Validators.instagram(state.instagram)
 
-        if (nameError != null || bioError != null || photoUrlError != null) {
+        if (nameError != null || bioError != null || photoUrlError != null || instagramError != null) {
             _uiState.update {
                 it.copy(
                     nameError = nameError,
                     bioError = bioError,
                     photoUrlError = photoUrlError,
+                    instagramError = instagramError,
                 )
             }
             return
@@ -168,6 +184,7 @@ class ProfileViewModel(
                 bio = state.bio,
                 photoUrl = state.photoUrl.takeIf { it.isNotBlank() },
                 interests = state.interests,
+                instagram = state.instagram,
             )
             if (profileResult is AppResult.Failure) {
                 _uiState.update {

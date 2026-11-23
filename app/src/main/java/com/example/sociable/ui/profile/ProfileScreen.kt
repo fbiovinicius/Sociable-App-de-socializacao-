@@ -18,6 +18,16 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -27,7 +37,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.sociable.R
 import com.example.sociable.data.model.Interest
 import com.example.sociable.data.model.LifeStage
 import com.example.sociable.data.model.LookingFor
@@ -36,7 +45,8 @@ import com.example.sociable.data.model.SocialVibe
 import com.example.sociable.feature.profile.ProfileViewModel
 import com.example.sociable.ui.common.ErrorText
 import com.example.sociable.ui.common.FormTextField
-import com.example.sociable.ui.common.Pin
+import com.example.sociable.ui.common.ProfilePhotoOrPin
+import com.example.sociable.ui.common.ProgressRingAvatar
 import com.example.sociable.ui.common.ScreenTitle
 import com.example.sociable.ui.common.SectionTitle
 import com.example.sociable.ui.common.SociableButton
@@ -53,6 +63,13 @@ fun ProfileScreen(
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    // Os botões do topo rolam até o campo e abrem o teclado nele.
+    val photoFocus = remember { FocusRequester() }
+    val instagramFocus = remember { FocusRequester() }
+    var photoFieldY by remember { mutableFloatStateOf(0f) }
+    var instagramFieldY by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(state.isSignedOut) {
         if (state.isSignedOut) onSignedOut()
@@ -75,12 +92,15 @@ fun ProfileScreen(
             .fillMaxSize()
             .background(SociableTheme.background)
             .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(start = 24.dp, end = 28.dp, bottom = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(modifier = Modifier.height(16.dp))
-        Pin(R.drawable.ic_pin_party, size = 88.dp)
+        ProgressRingAvatar(progress = state.completion, diameter = 124.dp) {
+            // Só a foto já salva: digitar a URL não dispara download a cada letra.
+            ProfilePhotoOrPin(photoUrl = state.savedPhotoUrl)
+        }
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = state.name.ifBlank { "Meu perfil" },
@@ -94,6 +114,34 @@ fun ProfileScreen(
             color = SociableTheme.muted,
             fontSize = 13.sp,
         )
+
+        // Atalhos para o que ainda falta no perfil (somem quando preenchido).
+        if (state.instagram.isBlank()) {
+            Spacer(modifier = Modifier.height(14.dp))
+            SociableButton(
+                text = "@ Adicionar redes sociais",
+                onClick = {
+                    scope.launch {
+                        scrollState.animateScrollTo(instagramFieldY.toInt())
+                        instagramFocus.requestFocus()
+                    }
+                },
+                secondary = true,
+            )
+        }
+        if (state.photoUrl.isBlank()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            SociableButton(
+                text = "Adicionar sua foto de perfil",
+                onClick = {
+                    scope.launch {
+                        scrollState.animateScrollTo(photoFieldY.toInt())
+                        photoFocus.requestFocus()
+                    }
+                },
+                secondary = true,
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
         ScreenTitle("Editar perfil", sub = "Como as pessoas vão te ver")
@@ -120,6 +168,19 @@ fun ProfileScreen(
             label = "URL da foto HTTPS (opcional)",
             error = state.photoUrlError,
             keyboardType = KeyboardType.Uri,
+            modifier = Modifier
+                .focusRequester(photoFocus)
+                .onGloballyPositioned { photoFieldY = it.positionInParent().y },
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        FormTextField(
+            value = state.instagram,
+            onValueChange = viewModel::onInstagramChange,
+            label = "Instagram (usuário, sem @)",
+            error = state.instagramError,
+            modifier = Modifier
+                .focusRequester(instagramFocus)
+                .onGloballyPositioned { instagramFieldY = it.positionInParent().y },
         )
 
         Spacer(modifier = Modifier.height(24.dp))
