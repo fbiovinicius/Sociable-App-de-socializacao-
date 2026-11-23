@@ -1,6 +1,6 @@
 package com.example.sociable.navigation
 
-import androidx.compose.foundation.Image
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -54,12 +54,11 @@ import androidx.compose.ui.unit.sp
 private data class Tab(val route: String, val label: String, val icon: Int)
 
 private val tabs = listOf(
-    Tab(Routes.EVENTS, "Descobrir", R.drawable.ic_pin_show),
-    Tab(Routes.MAP, "Mapa", R.drawable.ic_pin_party),
-    Tab(Routes.SECRET, "Chat da Cidade", R.drawable.ic_pin_secret),
-    Tab(Routes.PROFILE, "Perfil", R.drawable.ic_pin_people),
+    Tab(Routes.EVENTS, "Descobrir", R.drawable.ic_nav_discover),
+    Tab(Routes.MAP, "Mapa", R.drawable.ic_nav_map),
+    Tab(Routes.SECRET, "Chat da Cidade", R.drawable.ic_nav_chat),
+    Tab(Routes.PROFILE, "Perfil", R.drawable.ic_nav_profile),
 )
-
 @Composable
 fun SociableNavHost(
     navController: NavHostController = rememberNavController(),
@@ -85,7 +84,7 @@ fun SociableNavHost(
                                 }
                             },
                             icon = {
-                                Image(
+                                Icon(
                                     painter = painterResource(tab.icon),
                                     contentDescription = null,
                                     modifier = Modifier.size(26.dp),
@@ -93,6 +92,10 @@ fun SociableNavHost(
                             },
                             label = { Text(tab.label, maxLines = 1, fontSize = 11.sp) },
                             colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = SociableTheme.accent,
+                                selectedTextColor = SociableTheme.accent,
+                                unselectedIconColor = SociableTheme.muted,
+                                unselectedTextColor = SociableTheme.muted,
                                 indicatorColor = SociableTheme.chip,
                             ),
                         )
