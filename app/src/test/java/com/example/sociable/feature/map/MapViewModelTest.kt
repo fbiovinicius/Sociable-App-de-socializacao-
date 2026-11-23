@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -70,10 +71,26 @@ class MapViewModelTest {
     }
 
     @Test
-    fun `primeiro evento fica selecionado para o cartao do mapa`() = runTest(dispatcher) {
+    fun `mapa abre sem cartao e o toque num pin abre o cartao`() = runTest(dispatcher) {
         val (viewModel, _, _) = viewModel()
+        assertNull(viewModel.uiState.value.selectedEventId)
+
+        viewModel.onMarkerSelected("event-1")
 
         assertEquals("event-1", viewModel.uiState.value.selectedEventId)
+    }
+
+    @Test
+    fun `fechar o cartao limpa a selecao e a previa de participantes`() = runTest(dispatcher) {
+        val (viewModel, _, _) = viewModel()
+        viewModel.onMarkerSelected("event-1")
+        advanceUntilIdle()
+
+        viewModel.onMarkerSelected(null)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.selectedEventId)
+        assertTrue(viewModel.uiState.value.attendees.isEmpty())
     }
 
     @Test
@@ -147,6 +164,7 @@ class MapViewModelTest {
             },
         )
 
+        viewModel.onMarkerSelected("event-1")
         viewModel.reportEvent(ReportReason.OTHER, "comentário")
         advanceUntilIdle()
 
@@ -159,6 +177,7 @@ class MapViewModelTest {
     fun `denunciar sem estar logado mostra erro`() = runTest(dispatcher) {
         val (viewModel, _, _) = viewModel(signedIn = false)
 
+        viewModel.onMarkerSelected("event-1")
         viewModel.reportEvent(ReportReason.OTHER, "")
         advanceUntilIdle()
 
