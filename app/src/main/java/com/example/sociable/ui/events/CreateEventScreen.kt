@@ -251,12 +251,6 @@ fun CreateEventScreen(
         Spacer(modifier = Modifier.height(20.dp))
         Text(text = "Local", color = SociableTheme.ink, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
-        FormTextField(
-            value = state.venueName,
-            onValueChange = viewModel::onVenueChange,
-            label = "Nome do local",
-            error = state.venueError,
-        )
         Spacer(modifier = Modifier.height(12.dp))
         FormTextField(
             value = state.address,
