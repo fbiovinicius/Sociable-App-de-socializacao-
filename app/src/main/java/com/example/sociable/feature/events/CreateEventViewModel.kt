@@ -350,7 +350,6 @@ class CreateEventViewModel(
         val state = _uiState.value
         val titleError = Validators.eventTitle(state.title)
         val descriptionError = Validators.eventDescription(state.description)
-        val venueError = Validators.place(state.venueName)
         val addressError = Validators.place(state.address)
         val latitudeError = Validators.latitude(state.latitude)
         val longitudeError = Validators.longitude(state.longitude)
@@ -371,7 +370,7 @@ class CreateEventViewModel(
         val periodError = Validators.eventDuration(state.startAt, state.endAt)
 
         val hasErrors = listOf(
-            titleError, descriptionError, venueError, addressError,
+            titleError, descriptionError, addressError,
             latitudeError, longitudeError, priceError, capacityError,
             imageUrlError, periodError,
         ).any { it != null }
@@ -381,7 +380,6 @@ class CreateEventViewModel(
                 it.copy(
                     titleError = titleError,
                     descriptionError = descriptionError,
-                    venueError = venueError,
                     addressError = addressError,
                     latitudeError = latitudeError,
                     longitudeError = longitudeError,
