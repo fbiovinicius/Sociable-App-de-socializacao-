@@ -108,9 +108,10 @@ class MapViewModel(
                             emoji = event.emoji,
                         )
                     }
+                    // O cartão só aparece quando a pessoa toca num pin; se o evento
+                    // marcado sumiu da lista, o cartão fecha.
                     val currentId = _uiState.value.selectedEventId
                         ?.takeIf { id -> markers.any { it.eventId == id } }
-                        ?: markers.firstOrNull()?.eventId
                     selectedEventId.value = currentId
                     _uiState.update {
                         it.copy(

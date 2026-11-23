@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -117,15 +118,13 @@ fun MapScreen(
             )
     }
     val selected = visible.firstOrNull { it.eventId == state.selectedEventId }
-        ?: visible.firstOrNull()
 
     // Busca e filtros são locais à tela. Se o evento marcado deixar de aparecer,
-    // seleciona o primeiro visível para manter cards, participantes e denúncia
-    // apontando sempre para o mesmo evento.
+    // fecha o cartão para que participantes e denúncia nunca apontem para um
+    // evento que a pessoa não está vendo.
     LaunchedEffect(selected?.eventId, state.selectedEventId) {
-        val visibleSelectedId = selected?.eventId
-        if (visibleSelectedId != state.selectedEventId) {
-            viewModel.onMarkerSelected(visibleSelectedId)
+        if (selected == null && state.selectedEventId != null) {
+            viewModel.onMarkerSelected(null)
         }
     }
 
@@ -233,6 +232,8 @@ fun MapScreen(
                 myLocationButtonEnabled = false,
                 mapToolbarEnabled = false,
             ),
+            // Tocar no mapa fecha o cartão do evento.
+            onMapClick = { viewModel.onMarkerSelected(null) },
         ) {
             visible.forEach { marker ->
                 val isSelected = marker.eventId == selected?.eventId
@@ -344,68 +345,86 @@ fun MapScreen(
             }
         }
 
-        // Cartão do evento selecionado
-        StickerBox(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(16.dp),
-            fill = SociableTheme.surface,
-            radius = 24.dp,
-            contentPadding = PaddingValues(18.dp),
-        ) {
-            Column {
-                if (selected != null) {
-                    Text(
-                        text = "${selected.category.label} · ${formatEventDay(selected.startAt)} · ${ManausTime.time(selected.startAt)}",
-                        color = SociableTheme.muted,
-                        fontSize = 12.sp,
-                    )
-                    Text(
-                        text = selected.title,
-                        color = SociableTheme.ink,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = "${formatPriceText(selected.isFree, selected.price)} · ${formatSpots(selected.goingCount, selected.capacity)}",
-                        color = SociableTheme.ink,
-                        fontSize = 13.sp,
-                    )
-                    Text(
-                        text = "📍 ${selected.venueName} · ${selected.address}",
-                        color = SociableTheme.muted,
-                        fontSize = 12.sp,
-                    )
+        // Cartão do evento selecionado: compacto, e some ao tocar no X ou no mapa.
+        if (selected != null) {
+            StickerBox(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                fill = SociableTheme.surface,
+                radius = 22.dp,
+                contentPadding = PaddingValues(start = 14.dp, top = 10.dp, end = 10.dp, bottom = 12.dp),
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "${selected.category.label} · ${formatEventDay(selected.startAt)} · ${ManausTime.time(selected.startAt)}",
+                                color = SociableTheme.muted,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = selected.title,
+                                color = SociableTheme.ink,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = "${formatPriceText(selected.isFree, selected.price)} · ${formatSpots(selected.goingCount, selected.capacity)}",
+                                color = SociableTheme.ink,
+                                fontSize = 13.sp,
+                            )
+                            Text(
+                                text = "📍 " + listOf(selected.venueName, selected.address)
+                                    .filter { it.isNotBlank() }
+                                    .joinToString(" · "),
+                                color = SociableTheme.muted,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        MapButton("✕", "Fechar cartão do evento") {
+                            viewModel.onMarkerSelected(null)
+                        }
+                    }
 
-                    // Quem está no rolê: número de pessoas + prévia das fotos.
-                    Spacer(modifier = Modifier.height(12.dp))
+                    // Quem está no rolê + compartilhar e denunciar na mesma linha.
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (state.attendees.isNotEmpty() && selected.goingCount > 0) {
                             AttendeeAvatarStack(
                                 attendees = state.attendees,
                                 totalCount = selected.goingCount,
                                 maxVisible = 4,
-                                size = 34.dp,
+                                size = 30.dp,
                             )
                         } else {
                             Box(
                                 modifier = Modifier
-                                    .size(34.dp)
+                                    .size(30.dp)
                                     .clip(CircleShape)
                                     .background(SociableTheme.chip),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text(text = "👥", fontSize = 15.sp)
+                                Text(text = "👥", fontSize = 14.sp)
                             }
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = presenceText(selected),
                                 color = SociableTheme.ink,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             if (selected.isHappeningNow) {
                                 Text(
@@ -416,39 +435,26 @@ fun MapScreen(
                                 )
                             }
                         }
-                    }
-
-                    // Compartilhar e denunciar.
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         SociableChip(
-                            text = "🔗 Compartilhar",
+                            text = "🔗",
                             selected = false,
                             onClick = { shareEvent(selected) },
+                            modifier = Modifier.semantics { contentDescription = "Compartilhar evento" },
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
                         SociableChip(
-                            text = "⚠ Denunciar",
+                            text = "⚠",
                             selected = false,
                             onClick = { showReportDialog = true },
+                            modifier = Modifier.semantics { contentDescription = "Denunciar evento" },
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     SociableButton(
                         text = "Ver detalhes",
                         onClick = { onEventClick(selected.eventId) },
-                    )
-                } else {
-                    Text(
-                        text = "Nenhum rolê encontrado",
-                        color = SociableTheme.ink,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = "Tente outro filtro ou outra busca.",
-                        color = SociableTheme.muted,
-                        fontSize = 13.sp,
+                        modifier = Modifier.padding(end = 4.dp),
                     )
                 }
             }
