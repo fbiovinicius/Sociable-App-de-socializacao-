@@ -8,6 +8,7 @@ import com.example.sociable.core.time.ManausTime
 import com.example.sociable.core.time.TimeProvider
 import com.example.sociable.core.validation.ValidationError
 import com.example.sociable.core.validation.Validators
+import com.example.sociable.data.model.DEFAULT_EVENT_EMOJI
 import com.example.sociable.data.model.EventCategory
 import com.example.sociable.data.model.EventDraft
 import com.example.sociable.data.places.AddressSearch
@@ -52,6 +53,7 @@ data class CreateEventUiState(
     val price: String = "",
     val capacity: String = "",
     val imageUrl: String = "",
+    val emoji: String = DEFAULT_EVENT_EMOJI,
     val titleError: ValidationError? = null,
     val descriptionError: ValidationError? = null,
     val venueError: ValidationError? = null,
@@ -128,12 +130,13 @@ class CreateEventViewModel(
                                 ),
                                 // Fim fora do padrão (ou mais longo que o limite) fica como está.
                                 isEndCustom = savedDuration !in
-                                    MIN_DURATION_MINUTES..Validators.MAX_EVENT_DURATION_MINUTES.toInt(),
+                                        MIN_DURATION_MINUTES..Validators.MAX_EVENT_DURATION_MINUTES.toInt(),
                                 isFree = event.isFree,
                                 isSecret = event.isSecret,
                                 price = event.price?.let(::formatPriceInput).orEmpty(),
                                 capacity = event.capacity?.toString().orEmpty(),
                                 imageUrl = event.imageUrl.orEmpty(),
+                                emoji = event.emoji,
                                 goingCount = event.goingCount,
                                 isLoadingEvent = false,
                             )
@@ -346,6 +349,10 @@ class CreateEventViewModel(
         _uiState.update { it.copy(imageUrl = value, imageUrlError = null, error = null) }
     }
 
+    fun onEmojiChange(value: String) {
+        _uiState.update { it.copy(emoji = value, error = null) }
+    }
+
     fun onSubmit() {
         val state = _uiState.value
         val titleError = Validators.eventTitle(state.title)
@@ -415,6 +422,7 @@ class CreateEventViewModel(
             organizerId = user.id,
             organizerName = user.name,
             isSecret = state.isSecret,
+            emoji = state.emoji,
         )
 
         viewModelScope.launch {
