@@ -50,8 +50,13 @@ Saber o que está acontecendo na cidade ainda é difícil:
 - Eventos "Segredinhos" ficam fora do mapa para não revelar o local.
 
 **Segredinhos**
-- Aba própria para eventos com local oculto; o endereço só aparece para quem confirmou presença.
-- Criação a partir da aba já marcada como evento secreto.
+- Eventos com local oculto, marcados pelo interruptor "Segredinho" ao criar o evento; o endereço só aparece para quem confirmou presença.
+- Não há mais aba própria: eles aparecem no feed como os demais, com o local escondido.
+
+**Mensagens**
+- Aba **Mensagens** com os chats dos eventos que a pessoa organiza ou em que confirmou presença, com a última mensagem de cada um.
+- **Comunidades**: grupos abertos que qualquer pessoa cria (nome e descrição opcional), em que pode entrar, conversar e sair. O dono da comunidade não sai.
+- Busca por nome e abas Todos, Eventos e Comunidades. Em Todos aparecem os eventos e só as comunidades em que a pessoa já entrou.
 
 **Evento**
 - Detalhe com descrição, local, horário, preço, vagas e avaliações.
@@ -72,7 +77,7 @@ Saber o que está acontecendo na cidade ainda é difícil:
 - Cada etapa pode ser pulada ("Prefiro não dizer" também é uma resposta válida) e tudo é
   editável depois no Perfil, na seção "Sobre você".
 
-**Navegação:** Descobrir • Mapa • Segredinhos • Perfil. Chat e avaliações são abertos pelo detalhe do evento.
+**Navegação:** Descobrir • Mapa • Mensagens • Perfil. O chat do evento também abre pelo detalhe do evento, e as avaliações só pelo detalhe.
 
 ## Status do desenvolvimento
 
@@ -85,7 +90,8 @@ MVP com lógica MVVM e UI em Compose integradas:
 - [x] Onboarding social no cadastro (situação de vida, o que procura e vibe social)
 - [x] Chat e avaliações dos eventos
 - [x] Mapa com Google Maps e eventos geolocalizados
-- [x] Aba de segredinhos e local oculto para quem não confirmou
+- [x] Segredinhos: local oculto para quem não confirmou
+- [x] Aba Mensagens: chats dos eventos e comunidades abertas
 - [x] Firebase Authentication e Firestore (perfil, eventos e presença)
 - [x] Google Maps
 - [x] Lembretes locais (WorkManager)
@@ -139,22 +145,21 @@ FE:57:98:EB:4B:C9:C5:86:C0:C7:78:65:71:43:4F:3B:52:CF:17:6C
 Se você já tinha o app instalado, desinstale uma vez antes de instalar a versão nova, porque a
 assinatura mudou.
 
+### Mensagens e comunidades (Firestore)
+
+A aba **Mensagens** usa duas consultas de grupo de coleção, que exigem uma **exceção de índice** no Console do Firebase
+(Firestore → Índices → aba **Automático** → **Adicionar isenção**). Crie as duas, marcando só **Grupo de coleções** e **Crescente**:
+
+| Código da coleção | Caminho do campo | Escopo |
+|---|---|---|
+| `rsvps` | `userId` | Grupo de coleções |
+| `members` | `userId` | Grupo de coleções |
+
+Depois publique o `firestore.rules` atualizado (regras de `communities` e as regras de grupo de coleção).
+Sem as exceções, a lista mostra erro de índice; sem as regras novas, vem "permissão negada".
+
 ## Autores
 
 - Fábio Vinícius
 - Vinícius de Souza
 - Letícia Manuele
-
-## Mensagens e comunidades (Firestore)
-
-A aba **Mensagens** lista os chats dos eventos em que a pessoa vai (ou que organiza) e as comunidades abertas.
-Ela usa duas consultas de grupo de coleção, que exigem uma **exceção de índice** no Console do Firebase
-(Firestore → Índices → Exceções de campo único → Adicionar exceção):
-
-| ID da coleção | Campo | Escopo | Ativar |
-|---|---|---|---|
-| `rsvps` | `userId` | Grupo de coleções | Crescente |
-| `members` | `userId` | Grupo de coleções | Crescente |
-
-Depois publique o `firestore.rules` atualizado (regras de `communities` e as regras de grupo de coleção).
-Sem a exceção, a lista mostra erro de índice; sem as regras novas, vem "permissão negada".
