@@ -297,6 +297,24 @@ fun EventDetailScreen(
                         enabled = state.rsvp.isGoing || !state.rsvp.isFull,
                     )
 
+                    // Salvar: guarda o evento e avisa 1 h antes do início, sem confirmar presença.
+                    if (!state.isCancelled || state.isSaved) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        SociableButton(
+                            text = if (state.isSaved) {
+                                "🔖 Salvo (toque para remover)"
+                            } else {
+                                "🔖 Salvar e me lembrar"
+                            },
+                            onClick = {
+                                if (!state.isSaved) ensureNotificationPermission()
+                                viewModel.onToggleSave()
+                            },
+                            secondary = true,
+                            isLoading = state.isTogglingSave,
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(12.dp))
                     SociableButton(
                         text = "Chat do evento",

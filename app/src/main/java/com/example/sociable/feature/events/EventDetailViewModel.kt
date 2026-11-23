@@ -14,10 +14,12 @@ import com.example.sociable.data.model.RsvpInfo
 import com.example.sociable.data.repository.AuthRepository
 import com.example.sociable.data.repository.EventRepository
 import com.example.sociable.data.repository.ReviewRepository
+import com.example.sociable.data.repository.SavedEventRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -29,6 +31,9 @@ data class EventDetailUiState(
     val isLoading: Boolean = true,
     val isTogglingRsvp: Boolean = false,
     val isCancelling: Boolean = false,
+    /** A pessoa salvou o evento (ele vira um lembrete 1 h antes do início). */
+    val isSaved: Boolean = false,
+    val isTogglingSave: Boolean = false,
     val error: AppError? = null,
 ) {
     val isCancelled: Boolean get() = event?.status == EventStatus.CANCELLED
@@ -38,6 +43,7 @@ class EventDetailViewModel(
     private val eventId: String,
     private val eventRepository: EventRepository,
     private val reviewRepository: ReviewRepository,
+    private val savedEventRepository: SavedEventRepository,
     private val authRepository: AuthRepository,
     private val reminderScheduler: ReminderScheduler,
 ) : ViewModel() {
@@ -57,13 +63,19 @@ class EventDetailViewModel(
                 // continua abrindo, só sem a nota.
                 reviewRepository.observeRating(eventId)
                     .catch { emit(RatingSummary()) },
-            ) { event, rsvp, rating ->
-                Triple(event, rsvp, rating)
+                // Salvo é um extra: se a leitura falhar, o botão só aparece como "não salvo".
+                if (userId.isBlank()) {
+                    flowOf(emptySet())
+                } else {
+                    savedEventRepository.observeSavedIds(userId).catch { emit(emptySet()) }
+                },
+            ) { event, rsvp, rating, savedIds ->
+                DetailSnapshot(event, rsvp, rating, eventId in savedIds)
             }
                 .catch { throwable ->
                     _uiState.update { it.copy(isLoading = false, error = throwable.toAppError()) }
                 }
-                .collect { (event, rsvp, rating) ->
+                .collect { (event, rsvp, rating, isSaved) ->
                     // Evento cancelado: o lembrete local não faz mais sentido.
                     if (event?.status == EventStatus.CANCELLED) {
                         reminderScheduler.cancel(eventId)
@@ -73,10 +85,50 @@ class EventDetailViewModel(
                             event = event,
                             rsvp = rsvp,
                             rating = rating,
+                            isSaved = isSaved,
                             isLoading = false,
                         )
                     }
                 }
+        }
+    }
+
+    /**
+     * Salva ou remove o evento dos salvos. Salvar agenda o lembrete local (1 h antes);
+     * remover cancela o lembrete, a menos que a pessoa também confirmou presença.
+     */
+    fun onToggleSave() {
+        val user = authRepository.currentUser.value
+        if (user == null) {
+            _uiState.update { it.copy(error = AppError.UNAUTHENTICATED) }
+            return
+        }
+        val state = _uiState.value
+        if (state.isTogglingSave) return
+        val event = state.event ?: return
+        val save = !state.isSaved
+        viewModelScope.launch {
+            _uiState.update { it.copy(isTogglingSave = true, error = null) }
+            when (val result = savedEventRepository.setSaved(user.id, eventId, save)) {
+                is AppResult.Success -> {
+                    if (save && event.status == EventStatus.ACTIVE) {
+                        reminderScheduler.schedule(
+                            EventReminder(
+                                eventId = event.id,
+                                title = event.title,
+                                startAtMillis = event.startAt.toEpochMilli(),
+                            ),
+                        )
+                    } else if (!save && !_uiState.value.rsvp.isGoing) {
+                        reminderScheduler.cancel(eventId)
+                    }
+                    _uiState.update { it.copy(isTogglingSave = false) }
+                }
+
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isTogglingSave = false, error = result.error)
+                }
+            }
         }
     }
 
@@ -115,7 +167,8 @@ class EventDetailViewModel(
                     startAtMillis = event.startAt.toEpochMilli(),
                 ),
             )
-            !going -> reminderScheduler.cancel(eventId)
+            // Quem salvou o evento continua recebendo o lembrete mesmo sem ir.
+            !going && !_uiState.value.isSaved -> reminderScheduler.cancel(eventId)
         }
     }
 
@@ -144,3 +197,10 @@ class EventDetailViewModel(
         _uiState.update { it.copy(error = null) }
     }
 }
+
+private data class DetailSnapshot(
+    val event: Event?,
+    val rsvp: RsvpInfo,
+    val rating: RatingSummary,
+    val isSaved: Boolean,
+)
