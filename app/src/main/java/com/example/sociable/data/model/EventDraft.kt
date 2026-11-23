@@ -24,4 +24,6 @@ data class EventDraft(
     val organizerName: String,
     /** Cria o evento como "segredinho" (local revelado só aos confirmados). */
     val isSecret: Boolean = false,
+    /** Emoji do evento (marcador no mapa). */
+    val emoji: String = DEFAULT_EVENT_EMOJI,
 )

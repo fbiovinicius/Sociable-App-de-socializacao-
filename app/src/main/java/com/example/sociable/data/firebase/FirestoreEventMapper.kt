@@ -9,6 +9,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import java.time.Instant
 import java.util.Date
+import com.example.sociable.data.model.DEFAULT_EVENT_EMOJI
 
 /** Nomes dos campos usados na coleção `events`. */
 internal object EventFields {
@@ -31,6 +32,7 @@ internal object EventFields {
     const val CREATED_AT = "createdAt"
     const val IS_SECRET = "isSecret"
     const val STATUS = "status"
+    const val EMOJI = "emoji"
 }
 
 /** Nomes dos campos da subcoleção pública `events/{id}/attendees`. */
@@ -124,7 +126,9 @@ internal fun mapToEvent(id: String, data: Map<String, Any?>): Event? {
         createdAt = data[EventFields.CREATED_AT].toInstantOrNull() ?: startAt,
         isSecret = data[EventFields.IS_SECRET] as? Boolean ?: false,
         status = (data[EventFields.STATUS] as? String).toStatus(),
-    )
+        emoji = (data[EventFields.EMOJI] as? String)?.takeIf { it.isNotBlank() }
+            ?: DEFAULT_EVENT_EMOJI,
+        )
 }
 
 /**
@@ -154,6 +158,8 @@ internal fun EventDraft.toPublicEvent(id: String, createdAt: Instant): Event = E
     createdAt = createdAt,
     isSecret = isSecret,
     status = EventStatus.ACTIVE,
+    emoji = emoji,
+
 )
 
 /**
@@ -176,6 +182,8 @@ internal fun Event.toEditableFieldsMap(includeLocation: Boolean): Map<String, An
         put(EventFields.ADDRESS, address)
         put(EventFields.LATITUDE, latitude)
         put(EventFields.LONGITUDE, longitude)
+        put(EventFields.IMAGE_URL, imageUrl)
+        put(EventFields.EMOJI, emoji)
     }
 }
 
