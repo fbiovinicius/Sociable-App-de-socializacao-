@@ -57,8 +57,8 @@ import androidx.compose.ui.unit.sp
 private data class Tab(val route: String, val label: String, val icon: Int)
 
 private val tabs = listOf(
-    Tab(Routes.EVENTS, "Descobrir", R.drawable.ic_nav_discover),
-    Tab(Routes.MAP, "Mapa", R.drawable.ic_nav_map),
+    Tab(Routes.MAP, "Descobrir", R.drawable.ic_nav_discover),
+    Tab(Routes.EVENTS, "Eventos", R.drawable.ic_nav_events),
     Tab(Routes.MESSAGES, "Mensagens", R.drawable.ic_nav_chat),
     Tab(Routes.PROFILE, "Perfil", R.drawable.ic_nav_profile),
 )
@@ -81,7 +81,7 @@ fun SociableNavHost(
                             selected = currentRoute == tab.route,
                             onClick = {
                                 navController.navigate(tab.route) {
-                                    popUpTo(Routes.EVENTS) { saveState = true }
+                                    popUpTo(Routes.MAP) { saveState = true }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
@@ -124,7 +124,7 @@ fun SociableNavHost(
                 LoginScreen(
                     viewModel = viewModel,
                     onLoggedIn = {
-                        navController.navigate(Routes.EVENTS) {
+                        navController.navigate(Routes.MAP) {
                             popUpTo(Routes.WELCOME) { inclusive = true }
                         }
                     },
@@ -171,7 +171,7 @@ fun SociableNavHost(
             composable(Routes.INTERESTS) {
                 val viewModel: ProfileViewModel = koinViewModel()
                 val goToFeed = {
-                    navController.navigate(Routes.EVENTS) {
+                    navController.navigate(Routes.MAP) {
                         popUpTo(Routes.INTERESTS) { inclusive = true }
                     }
                 }
@@ -314,7 +314,7 @@ fun SociableNavHost(
                     viewModel = viewModel,
                     onSignedOut = {
                         navController.navigate(Routes.WELCOME) {
-                            popUpTo(Routes.EVENTS) { inclusive = true }
+                            popUpTo(Routes.MAP) { inclusive = true }
                         }
                     },
                 )

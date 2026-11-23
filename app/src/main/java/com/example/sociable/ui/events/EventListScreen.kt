@@ -65,7 +65,7 @@ import com.example.sociable.ui.common.StickerBox
 import com.example.sociable.ui.map.rememberUserLocation
 import com.example.sociable.ui.theme.SociableTheme
 
-/** Quantos rolês aparecem no Descobrir antes do "Ver todos". */
+/** Quantos rolês aparecem na lista de Eventos antes do "Ver todos". */
 private const val MAX_EM_ALTA = 4
 
 @Composable
@@ -112,7 +112,7 @@ private fun EventListContent(
     ) {
         Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp)) {
             Text(
-                text = "Descobrir",
+                text = "Eventos",
                 color = SociableTheme.ink,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.ExtraBold,
