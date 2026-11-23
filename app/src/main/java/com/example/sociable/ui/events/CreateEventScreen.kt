@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -75,6 +76,18 @@ fun CreateEventScreen(
     var showEndEditor by remember { mutableStateOf(false) }
     var showEndDate by remember { mutableStateOf(false) }
     var showEndTime by remember { mutableStateOf(false) }
+    var showEmojiPicker by remember { mutableStateOf(false) }
+
+    if (showEmojiPicker) {
+        EmojiPickerSheet(
+            selected = state.emoji,
+            onSelect = {
+                viewModel.onEmojiChange(it)
+                showEmojiPicker = false
+            },
+            onDismiss = { showEmojiPicker = false },
+        )
+    }
 
     if (showStartDate) {
         SociableDatePickerDialog(
@@ -195,11 +208,25 @@ fun CreateEventScreen(
             return@Column
         }
 
-        FormTextField(
-            value = state.title,
-            onValueChange = viewModel::onTitleChange,
-            label = "Nome do evento",
-            error = state.titleError,
+        Row(verticalAlignment = Alignment.Top) {
+            EmojiPickerButton(
+                emoji = state.emoji,
+                onClick = { showEmojiPicker = true },
+            )
+            Spacer(modifier = Modifier.width(14.dp))
+            FormTextField(
+                value = state.title,
+                onValueChange = viewModel::onTitleChange,
+                label = "Nome do evento",
+                error = state.titleError,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Text(
+            text = "Esse emoji vai aparecer no mapa da cidade.",
+            color = SociableTheme.muted,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(start = 2.dp, top = 6.dp),
         )
         Spacer(modifier = Modifier.height(12.dp))
 
