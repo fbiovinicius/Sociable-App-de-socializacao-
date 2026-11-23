@@ -1,8 +1,10 @@
 package com.example.sociable.feature.profile
 
 import com.example.sociable.core.time.TimeProvider
+import com.example.sociable.core.AppError
 import com.example.sociable.data.fake.FakeAuthRepository
 import com.example.sociable.data.fake.FakeDatabase
+import com.example.sociable.data.fake.FakePhotoUploader
 import com.example.sociable.data.fake.FakeUserRepository
 import com.example.sociable.data.model.LifeStage
 import com.example.sociable.data.model.LookingFor
@@ -20,6 +22,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -35,6 +38,7 @@ class ProfileViewModelTest {
         val db: FakeDatabase,
         val auth: FakeAuthRepository,
         val users: FakeUserRepository,
+        val photos: FakePhotoUploader = FakePhotoUploader(),
     )
 
     @Before
@@ -57,7 +61,7 @@ class ProfileViewModelTest {
     @Test
     fun `salvar persiste perfil basico e respostas sociais`() = runTest(dispatcher) {
         val deps = dependencies()
-        val viewModel = ProfileViewModel(deps.users, deps.auth)
+        val viewModel = ProfileViewModel(deps.users, deps.auth, deps.photos)
         advanceUntilIdle()
 
         viewModel.onNameChange("Ana Maria")
@@ -82,7 +86,7 @@ class ProfileViewModelTest {
     @Test
     fun `o que procura limita a tres escolhas no perfil`() = runTest(dispatcher) {
         val deps = dependencies()
-        val viewModel = ProfileViewModel(deps.users, deps.auth)
+        val viewModel = ProfileViewModel(deps.users, deps.auth, deps.photos)
         advanceUntilIdle()
 
         val options = LookingFor.entries.take(LookingForRules.MAX_CHOICES + 1)
@@ -98,7 +102,7 @@ class ProfileViewModelTest {
     @Test
     fun `tocar de novo remove a escolha unica`() = runTest(dispatcher) {
         val deps = dependencies()
-        val viewModel = ProfileViewModel(deps.users, deps.auth)
+        val viewModel = ProfileViewModel(deps.users, deps.auth, deps.photos)
         advanceUntilIdle()
 
         viewModel.onLifeStageSelect(LifeStage.STUDENT)
@@ -113,7 +117,7 @@ class ProfileViewModelTest {
     @Test
     fun `salvar grava o instagram sem arroba e o anel acompanha o preenchimento`() = runTest(dispatcher) {
         val deps = dependencies()
-        val viewModel = ProfileViewModel(deps.users, deps.auth)
+        val viewModel = ProfileViewModel(deps.users, deps.auth, deps.photos)
         advanceUntilIdle()
         val before = viewModel.uiState.value.completion
 
@@ -129,7 +133,7 @@ class ProfileViewModelTest {
     @Test
     fun `instagram invalido bloqueia o salvamento`() = runTest(dispatcher) {
         val deps = dependencies()
-        val viewModel = ProfileViewModel(deps.users, deps.auth)
+        val viewModel = ProfileViewModel(deps.users, deps.auth, deps.photos)
         advanceUntilIdle()
 
         viewModel.onInstagramChange("https://instagram.com/ana")
@@ -141,5 +145,37 @@ class ProfileViewModelTest {
             viewModel.uiState.value.instagramError,
         )
         assertFalse(viewModel.uiState.value.isSaved)
+    }
+
+    @Test
+    fun `foto escolhida na galeria e enviada e so grava ao salvar`() = runTest(dispatcher) {
+        val deps = dependencies()
+        val viewModel = ProfileViewModel(deps.users, deps.auth, deps.photos)
+        advanceUntilIdle()
+
+        viewModel.onPhotoPicked("content://media/1")
+        advanceUntilIdle()
+
+        assertEquals("https://fake.test/profile/1.jpg", viewModel.uiState.value.photoUrl)
+        assertFalse(viewModel.uiState.value.isUploadingPhoto)
+        assertNull(deps.users.observeUser("user-1").first()!!.photoUrl)
+
+        viewModel.onSaveClick()
+        advanceUntilIdle()
+        assertEquals("https://fake.test/profile/1.jpg", deps.users.observeUser("user-1").first()!!.photoUrl)
+    }
+
+    @Test
+    fun `falha no envio mostra erro e mantem a foto anterior`() = runTest(dispatcher) {
+        val deps = dependencies()
+        deps.photos.failWith = AppError.NETWORK
+        val viewModel = ProfileViewModel(deps.users, deps.auth, deps.photos)
+        advanceUntilIdle()
+
+        viewModel.onPhotoPicked("content://media/1")
+        advanceUntilIdle()
+
+        assertEquals(AppError.NETWORK, viewModel.uiState.value.error)
+        assertEquals("", viewModel.uiState.value.photoUrl)
     }
 }

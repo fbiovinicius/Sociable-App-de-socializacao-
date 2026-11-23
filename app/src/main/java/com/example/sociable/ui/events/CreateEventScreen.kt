@@ -44,6 +44,8 @@ import com.example.sociable.ui.common.BackLink
 import com.example.sociable.ui.common.DateTimeField
 import com.example.sociable.ui.common.DurationInputDialog
 import com.example.sociable.ui.common.ErrorText
+import com.example.sociable.ui.common.EventCoverPicker
+import com.example.sociable.ui.common.rememberPhotoPicker
 import com.example.sociable.ui.common.FormTextField
 import com.example.sociable.ui.common.ScreenTitle
 import com.example.sociable.ui.common.SociableButton
@@ -466,12 +468,12 @@ fun CreateEventScreen(
             keyboardType = KeyboardType.Number,
         )
         Spacer(modifier = Modifier.height(12.dp))
-        FormTextField(
-            value = state.imageUrl,
-            onValueChange = viewModel::onImageUrlChange,
-            label = "URL da imagem (opcional)",
-            error = state.imageUrlError,
-            keyboardType = KeyboardType.Uri,
+        val pickEventImage = rememberPhotoPicker(onPicked = viewModel::onImagePicked)
+        EventCoverPicker(
+            imageUrl = state.imageUrl,
+            isUploading = state.isUploadingImage,
+            onPick = pickEventImage,
+            onRemove = viewModel::onImageRemove,
         )
 
         ErrorText(error = state.error)

@@ -8,6 +8,7 @@ import com.example.sociable.data.fake.FakeAuthRepository
 import com.example.sociable.data.fake.FakeDatabase
 import com.example.sociable.data.fake.FakeAddressSearch
 import com.example.sociable.data.fake.FakeEventRepository
+import com.example.sociable.data.fake.FakePhotoUploader
 import com.example.sociable.data.places.AddressSuggestion
 import com.example.sociable.data.places.ResolvedAddress
 import java.time.Instant
@@ -47,11 +48,12 @@ class CreateEventViewModelTest {
 
     private suspend fun viewModel(
         addressSearch: FakeAddressSearch = FakeAddressSearch(),
+        photos: FakePhotoUploader = FakePhotoUploader(),
     ): CreateEventViewModel {
         val db = FakeDatabase(timeProvider)
         val auth = FakeAuthRepository(db, timeProvider)
         auth.signIn("demo@sociable.app", "123456")
-        return CreateEventViewModel(FakeEventRepository(db, timeProvider), auth, addressSearch, timeProvider)
+        return CreateEventViewModel(FakeEventRepository(db, timeProvider), auth, addressSearch, photos, timeProvider)
     }
 
     @Test
@@ -284,5 +286,19 @@ class CreateEventViewModelTest {
         assertTrue(vm.uiState.value.addressSuggestions.isEmpty())
         assertEquals("Av. Djalma", vm.uiState.value.address)
         assertNull(vm.uiState.value.error)
+    }
+
+    @Test
+    fun `capa escolhida na galeria vira a url da imagem e pode ser removida`() = runTest(dispatcher) {
+        val photos = FakePhotoUploader()
+        val viewModel = viewModel(photos = photos)
+
+        viewModel.onImagePicked("content://media/9")
+        advanceUntilIdle()
+        assertEquals("https://fake.test/event/1.jpg", viewModel.uiState.value.imageUrl)
+        assertFalse(viewModel.uiState.value.isUploadingImage)
+
+        viewModel.onImageRemove()
+        assertEquals("", viewModel.uiState.value.imageUrl)
     }
 }

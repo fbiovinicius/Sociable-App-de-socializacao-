@@ -1,0 +1,31 @@
+rules_version = '2';
+
+// Fotos enviadas pelo app. Só leitura para quem está logado; cada pessoa grava
+// apenas dentro da própria pasta (uid), até 5 MB e só imagem.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function validImage() {
+      return request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Foto de perfil: profile/{uid}/photo.jpg
+    match /profile/{userId}/{file} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == userId && validImage();
+      allow delete: if signedIn() && request.auth.uid == userId;
+    }
+
+    // Capas de evento: events/{uid-do-organizador}/{arquivo}.jpg
+    match /events/{userId}/{file} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == userId && validImage();
+      allow delete: if signedIn() && request.auth.uid == userId;
+    }
+  }
+}
