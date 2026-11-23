@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import java.time.Instant
 import androidx.compose.foundation.layout.size
 import java.time.LocalDate
+import com.example.sociable.ui.common.EmojiBadge
 
 @Composable
 fun EventCard(
@@ -55,7 +56,11 @@ fun EventCard(
     ) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Pin(pinRes(event.category, event.isSecret), size = 38.dp)
+                if (event.isSecret) {
+                    Pin(pinRes(event.category, event.isSecret), size = 38.dp)
+                } else {
+                    EmojiBadge(emoji = event.emoji, size = 38.dp)
+                }
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -231,7 +236,11 @@ fun EventCardCompact(
                     .border(2.dp, SociableTheme.ink, tileShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Pin(pinRes(event.category, event.isSecret), size = 32.dp)
+                if (event.isSecret) {
+                    Pin(pinRes(event.category, event.isSecret), size = 34.dp)
+                } else {
+                    EmojiBadge(emoji = event.emoji, size = 36.dp)
+                }
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
